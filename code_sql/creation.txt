@@ -1,0 +1,2 @@
+cd C:\Users\johns\OneDrive\Bureau\projet_statistique\mimic-iv\buildmimic\postgres
+postgres

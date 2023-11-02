@@ -1,0 +1,185 @@
+---
+title: "Nettoyage_donnees_clustering"
+author: "Jumbong junior"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(explor)
+library(questionr)
+library(tidyverse)
+library(readr)
+
+library(VIM)
+library(cluster)
+
+library(factoextra)
+library(FactoMineR)
+library(missMDA)
+library(Factoshiny)
+
+```
+
+
+```{r}
+data_clear <- df %>% 
+  filter(indicatrice_deces_j2==0)
+```
+
+
+```{r}
+glimpse(data_clear)
+```
+
+
+# Suppression des colonnes de type Date,subject_id et hadm_id
+
+```{r}
+data_clear<- data_clear %>% 
+  select(-c(subject_id,hadm_id,datedebut_complet,date_deces,death,
+            death_time,datedebut,j0,j1,j2,j3,datesortie_complet))
+
+```
+
+
+# compter le pourcentage de valeurs manquantes de nos données
+
+```{r}
+total_na <- sum(is.na(data_clear))
+
+# Calculer le nombre total de valeurs dans le tibble
+total_values <- nrow(data_clear) * ncol(data_clear)
+
+# Calculer le pourcentage de valeurs manquantes
+percentage_na <- (total_na / total_values) * 100
+percentage_na
+```
+
+Nous avons au total 33% de valeurs manquantes. Nous pouvons donc le traiter à l'aide de FAMD.
+
+```{r}
+percentage_na <- colMeans(is.na(data_clear)) * 100
+
+# Trouver les colonnes qui ont plus de 30% de valeurs manquantes
+columns_over_30 <- names(percentage_na[percentage_na > 30])
+
+```
+
+```{r}
+percentage_na <- colMeans(is.na(data_clear)) * 100
+
+
+```
+
+# Supprimons toutes les colonnes qui ont plus de 40 % de valeurs manquantes
+
+
+```{r}
+data_clear <- data_clear %>%
+  select_if(~ sum(is.na(.)) / nrow(data_clear)< 0.5)
+
+```
+
+```{r}
+glimpse(data_clear)
+```
+
+
+
+
+
+
+
+# Variables qui nous intéressent
+
+```{r}
+data_clear<-data_clear %>% 
+  select(-c(
+ "glycemie_max_j3_final",      
+ "glycemie_min_j3_final",      
+ "glycemie_max_j2_final",      
+ "glycemie_min_j2_final",      
+ "glycemie_max_j1_final",     
+ "glycemie_min_j1_final",      
+ "glycemie_max_j0_final",     
+ "glycemie_min_j0_final", 
+
+          
+"PaO2_FiO2_max_J2",         
+"PaO2_FiO2_max_J1",           
+"PaO2_FiO2_max_J0",          
+         
+"PaO2_FiO2_min_J2",           
+"PaO2_FiO2_min_J1",          
+"PaO2_FiO2_min_J0",
+"anchor_year",
+"anchor_year_group"))
+```
+
+```{r}
+glimpse(data_clear)
+```
+# ACp sur les bilans de J0 à J3
+
+```{r}
+data_clear<-data_clear %>% 
+  select(gender,anchor_age,vis_j0, bilan_entre_sortie_j0,indicatrice_glycemie_j0,phlabevents_J0,`lactate_J0(mmol/L)` ,ventilation_j0,PaO2_FiO2_moyen_J0)
+
+pourcentage_na <- data_clear %>%
+  summarise_all(~ mean(is.na(.)) * 100)
+pourcentage_na
+
+```
+
+# Déterminons le nombre optimal de composante pour l'ACP
+
+```{r}
+data_acp<-data_clear %>% 
+  select(bilan_entre_sortie_j0,bilan_entre_sortie_j1,bilan_entre_sortie_j2,bilan_entre_sortie_j3)
+view(data_acp)
+```
+
+
+```{r}
+ncp.min <- 1
+ncp.max <- 10
+
+cv_results <- estim_ncpPCA(data_acp, ncp.min = ncp.min, ncp.max = ncp.max, method = "Regularized", 
+       scale = TRUE,nbsim = 1000)
+cv_results$
+#"“gcv”, “loo”, “fold”, “GCV”, “kfold”, “LOO”
+```
+```{r}
+cv_errors <- cv_results$cv
+gcv_errors <- cv_results$gcv
+cv_errors
+gcv_errors
+```
+
+```{r}
+library(ggplot2)
+
+dimensions <- ncp.min:ncp.max
+df_errors <- data.frame(Dimensions = rep(dimensions, 2),
+                        Error = c(cv_errors, gcv_errors),
+                        Method = factor(rep(c("CV", "GCV"), each = length(dimensions))))
+
+ggplot(df_errors, aes(x = Dimensions, y = Error, color = Method)) +
+  geom_line() +
+  geom_point() +
+  labs(title = "Prediction Error for Different Number of Dimensions",
+       x = "Number of Dimensions",
+       y = "Error") +
+  theme_minimal()
+```
+```{r}
+optimal_ncp <- 1
+completed_data <- missMDA::imputePCA(data_acp, ncp = optimal_ncp)
+PCA(completed_data$completeObs)
+```
+

@@ -1,0 +1,154 @@
+---
+title: "ACM"
+author: "Jumbong junior"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+library(explor)
+library(questionr)
+library(tidyverse)
+library(readr)
+
+library(VIM)
+library(cluster)
+
+library(factoextra)
+library(FactoMineR)
+library(missMDA)
+library(Factoshiny)
+```
+
+
+```{r}
+df_trai<-df %>% 
+  select(-c(subject_id,hadm_id,datedebut_complet,date_deces,death,
+            death_time,datedebut,j0,j1,j2,j3,datesortie_complet))
+
+```
+
+Suppression des individus qui sont morts entre J0 et J2
+
+```{r}
+df_trai <- df_trai %>%  
+  filter(indicatrice_deces_j0 == 0 & indicatrice_deces_j1 == 0 & indicatrice_deces_j2 == 0) %>% 
+  select(-c(indicatrice_deces_j0,indicatrice_deces_j1,indicatrice_deces_j2))
+  
+```
+
+Je supprime de la base les variables qui ne sont pas dans l'étude oubien qui ont de mauvais caractéristiques.
+
+```{r}
+df_trai<-df_trai %>% 
+  select(-c("temperature_min_j0"  ,      
+ "temperature_min_j1",         
+ "temperature_min_j2",         
+ "temperature_min_j3" ,
+ "temperature_max_j0"  ,      
+ "temperature_max_j1",         
+ "temperature_max_j2",         
+ "temperature_max_j3",
+ "glycemie_max_j3_final",      
+ "glycemie_min_j3_final",      
+ "glycemie_max_j2_final",      
+ "glycemie_min_j2_final",      
+ "glycemie_max_j1_final",     
+ "glycemie_min_j1_final",      
+ "glycemie_max_j0_final",     
+ "glycemie_min_j0_final", 
+
+"PaO2_FiO2_max_J3",           
+"PaO2_FiO2_max_J2",         
+"PaO2_FiO2_max_J1",           
+"PaO2_FiO2_max_J0",          
+"PaO2_FiO2_min_J3",           
+"PaO2_FiO2_min_J2",           
+"PaO2_FiO2_min_J1",          
+"PaO2_FiO2_min_J0",
+"anchor_year",
+"anchor_year_group",
+"aids"))
+```
+
+
+Je supprime de mon étude toute les colonnes qui ont plus 35% de valeurs manquantes. Ceci me permet dans une certaine mesure d'éliminer l'effet de la mortalité sur les vale
+
+```{r}
+percent_missing <- colMeans(is.na(df_trai))
+
+percent_missing
+# Choissons toutes les colonnes qui ont moins de 3O% de valeurs manquantes
+df_acp<- df_trai %>% select(-which(percent_missing > 0.35 ))
+glimpse(df_trai)
+```
+
+Ici je prends les indices des colonnes suppléméntaires quantitatives
+
+```{r}
+
+df_acp<-column_to_rownames(as.data.frame(df_acp))
+
+
+df_acp<-df_acp %>% 
+  rename(pH_J0=phlabevents_J0,pH_J1=phlabevents_J1,pH_J2=phlabevents_J2,pH_J3=phlabevents_J3,lactate_J0=`lactate_J0(mmol/L)`,lactate_J1=`lactate_J1(mmol/L)`,lactate_J2 =`lactate_J2(mmol/L)`,score_visJ0 =vis_j0,score_visJ1=vis_j1,score_visJ2=vis_j2)
+
+```
+
+
+##########################################################
+
+```{r}
+glimpse(df_acp)
+```
+
+
+
+##################################################################
+
+
+```{r}
+
+ncomp <- estim_ncpFAMD(df_acp)
+res.imp <- imputeFAMD(df_acp,ncp=ncomp$ncp)
+PCAshiny(res.imp$completeObs)
+
+res.PCA<-PCA(res.imp$completeObs,quali.sup=c(1,10,11,12,13,14,15,16,17,18,19,20,21,22,23,31,32,33,34),quanti.sup=c(2,28),graph=FALSE,scale.unit = TRUE)
+explor(res.PCA)
+```
+
+Analyse de classification sur les composantes principales
+
+```{r}
+
+
+explor(res.PCA)
+res.hcpc <- HCPC(res.PCA, graph = FALSE,max = 10)
+
+
+fviz_dend(res.hcpc,
+cex = 0.7, # Label size
+palette = "jco", # Color palette see ?ggpubr::ggpar
+rect = TRUE, rect_fill = TRUE, # Add rectangle around groups
+rect_border = "jco", # Rectangle color
+labels_track_height = 0.8 # Augment the room for labels
+)
+
+
+PCAshiny(res.impute_acp$completeOb)
+```
+
+
+```{r}
+library(glmm)
+data(BoothHobert)
+view(BoothHobert)
+view(df)
+```
+
+

@@ -1,0 +1,138 @@
+---
+title: "GLMM"
+author: "Jumbong junior"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+rm(list=ls())
+```
+
+
+```{r}
+library(questionr)
+library(glmm)
+library(tidyverse)
+library(readr)
+library(VIM)
+library(cluster)
+library(ggplot2)
+library(magrittr)
+library(multipanelfigure)
+library(mice)
+library(survival)
+library(lme4)
+
+
+library(factoextra)
+library(FactoMineR)
+library(missMDA)
+library(Factoshiny)
+
+```
+
+
+```{r}
+library(readr)
+data_analyse <- read_csv("data_analyse.csv",show_col_types = FALSE)
+```
+
+```{r}
+data_analyse$deces_logistique<-0
+
+data_analyse$deces_logistique[data_analyse$tstop==data_analyse$time_J3]<-data_analyse$status_J3[data_analyse$tstop==data_analyse$time_J3]
+
+data_analyse$indicatice_bilan<-0
+data_analyse$indicatice_bilan[data_analyse$bilan_entree_sortie>0]<-1
+```
+
+
+```{r}
+data_analyse<-data_analyse %>% 
+  select(-c(hadm_id,origin,aids,time_J3,status_J3,tstart,tstop,albumin))
+```
+
+
+```{r}
+glimpse(data_analyse)
+```
+
+```{r}
+data_ana<-data_analyse %>% select(-c(dialyse,indicatrice_temperature))
+```
+
+
+```{r}
+glimpse(data_ana)
+```
+
+```{r}
+colonnes_a_exclure <- c("lactate", "vis","phlabevents","bilan_entree_sortie","bilan_entree_sortie","subject_id","anchor_age","Pa02_FiO2moyen","deces_logistique")
+
+data_ana <- data_ana %>%
+  mutate(across(-all_of(colonnes_a_exclure), as.factor))
+str(data_ana)
+
+
+data_ana <- data_ana %>%
+  mutate_if(is.factor, ~ as.character(.)) %>% # convertir les colonnes factor en character
+  mutate_if(is.character, ~ ifelse(. == "Null", NA, .)) %>% # remplacer les "NULL" par NA
+  mutate_if(is.character, ~ as.factor(.)) # convertir les colonnes character en factor
+
+```
+# Imputation par FAMD
+```{r}
+#ncp <-estim_ncpFAMD(data_ana)
+#res.impute <- imputeFAMD(data_ana, ncp = ncp$ncp)
+#dataglmm<-res.impute$completeObs
+#view(dataglmm)
+data_ana<-data_ana %>% select(c(subject_id,vis,anchor_age,phlabevents,lactate,Pa02_FiO2moyen,heart_failure,ventilation,deces_logistique))
+str(data_ana)
+```
+
+# Imputation par random forest 
+
+```{r}
+imputed_df <- mice(data_ana, method = "rf", m = 5)
+dataglmm <- complete(imputed_df)
+View(dataglmm)
+```
+
+```{r}
+dataglmm$anchor_age<-scale(dataglmm$anchor_age)
+dataglmm$phlabevents<-scale(dataglmm$phlabevents)
+dataglmm$lactate<-scale(dataglmm$lactate)
+dataglmm$Pa02_FiO2moyen<-scale(dataglmm$Pa02_FiO2moyen)
+dataglmm$vis<-scale(dataglmm$vis)
+str(dataglmm)
+```
+
+
+# Modélisation GLMM
+```{r}
+
+glmm.fitc <- glmer(deces_logistique~  vis+
+                    phlabevents+
+                   lactate+
+                   heart_failure+
+                  anchor_age+
+                  Pa02_FiO2moyen+
+                    ventilation +(1 | subject_id),
+  data = dataglmm,
+  family = binomial
+)
+
+```
+```{r}
+fixef(glmm.fitc)
+```
+
+```{r}
+summary(glmm.fitc)
+```
+

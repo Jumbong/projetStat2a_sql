@@ -1,0 +1,68 @@
+select * 
+FROM mimiciv_icu.chartevents ch 
+INNER JOIN mimiciv_hosp.procedures_icd pro
+  ON ch.subject_id = pro.subject_id and ch.hadm_id = pro.hadm_id 
+	where  ch.itemid = 220045 and ch.value ='0' and (pro.icd_code = '9960' or pro.icd_code = '9393')
+*/	
+
+/*
+select distinct subject_id
+FROM mimiciv_hosp.procedures_icd pro
+WHERE pro.icd_code = '9960' or pro.icd_code = '9393'
+*/
+
+/*
+select distinct ch.subject_id, ch.hadm_id
+FROM mimiciv_icu.chartevents ch 
+INNER JOIN mimiciv_hosp.procedures_icd pro
+  ON ch.subject_id = pro.subject_id and ch.hadm_id = pro.hadm_id 
+	where  ch.itemid = 220045 and ch.value ='0' and (pro.icd_code = '9960' or pro.icd_code = '9393')
+*/
+
+--cardiac arrest
+/*
+select distinct subject_id, hadm_id
+FROM mimiciv_hosp.diagnoses_icd dia
+where dia.icd_code IN (SELECT icd_code
+					FROM mimiciv_hosp.d_icd_diagnoses 
+					WHERE LOWER(long_title) LIKE '%cardiac arrest%')
+*/
+
+(select distinct subject_id, hadm_id
+FROM mimiciv_hosp.diagnoses_icd dia
+where dia.icd_code IN (SELECT icd_code
+					FROM mimiciv_hosp.d_icd_diagnoses 
+					WHERE LOWER(long_title) LIKE '%cardiac arrest%'))
+/*INTERSECT	
+(select distinct subject_id,hadm_id
+FROM mimiciv_hosp.procedures_icd pro
+WHERE pro.icd_code = '9960' or pro.icd_code = '9393')*/
+
+
+
+
+
+
+
+				  ))
+CREATE TABLE lactate_J0_date AS
+SELECT max(CPR_lactate2.charttime),CPR_lactate2.subject_id,CPR_lactate2.hadm_id,max(CPR_essai.JO)
+	FROM CPR_lactate2,CPR_essai
+	WHERE CPR_lactate2.subject_id=CPR_essai.subject_id AND 
+	CPR_lactate2.hadm_id=CPR_essai.hadm_id AND 
+	CPR_essai.JO=date(CPR_lactate2.charttime)
+	GROUP BY CPR_lactate2.subject_id ,CPR_lactate2.hadm_id
+*/
+
+
+ALTER TABLE CPR_essai ADD COLUMN lactate_JO VARCHAR(200);
+UPDATE CPR_essai SET lactate_JO=if(lactate_J0_final.subject_id=lactate_J0_final.subject_id AND 
+	lactate_J0_final.hadm_id=lactate_J0_final.hadm_id AND 
+	CPR_essai.JO=date(lactate_J0_final.charttime),lactate_J0_final.value,NULL
+SELECT lactate_J0_final.value
+FROM lactate_J0_final
+	WHERE CPR_essai.subject_id=lactate_J0_final.subject_id AND 
+	CPR_essai.hadm_id=lactate_J0_final.hadm_id AND 
+	CPR_essai.JO=date(lactate_J0_final.charttime)
+									,NULL)
+)

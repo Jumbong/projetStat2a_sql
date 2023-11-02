@@ -1,0 +1,1103 @@
+---
+title: "Statistique descriptive"
+author: "Jumbong junior"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r include=FALSE}
+# Chargement de library
+library(questionr)
+library(tidyverse)
+library(readr)
+```
+
+
+```{r include=FALSE}
+# Chargement des données
+data <- read_csv("data.csv",show_col_types = FALSE)
+
+
+```
+
+
+# Tranformation des colonnes  en date 
+```{r}
+# Fonction qui transforme une colonne en date
+dateT<-function(x)
+for(i in 1:length(x)){
+  if (x[i]=="NULL"){
+    x[i]<-NA
+  }else{
+    as.Date(x[i])
+  }
+  return(x)
+}
+
+
+```
+
+# Création de la colonne date_deces qui récupère deces_date en format date.
+
+```{r}
+
+data <- mutate(data, date_deces=as.Date(dateT(data$deces_date)))
+data <- data %>% 
+  select(-deces_date)
+```
+
+
+```{r}
+# Transformation des données en tibble en prenant la
+data <- as_tibble(rownames_to_column(data))
+
+
+
+```
+
+```{r}
+
+# Identifier les colonnes de type caractère
+colonnes_caracteres <- which(sapply(data, is.character))
+#colonnes_caracteres
+
+
+
+```
+
+Les vrais caractères sont les variables suivantes:
+ 
+     
+   " indicatrice_temperature_j0" ,   
+    "indicatrice_temperature_j1" ,
+    "indicatrice_temperature_j2" , 
+    "indicatrice_temperature_j3" ,"gender" ,"anchor_year_group","ventilation_mechanique_J0" ,"ventilation_mechanique_J1","ventilation_mechanique_J2" ,"ventilation_mechanique_J3" ,"dialysis_patient_J0" ,"dialysis_patient_J1", "dialysis_patient_J2 " , "dialysis_patient_J3","cause_arret_cardiac"     
+
+# Transformation des faux caractères en numeric
+
+
+```{r include=FALSE}
+colonnes_garder<-which(colnames(data) %in% c(
+  "origin",
+  "dialysis_patient_J0" ,"dialysis_patient_J1", "dialysis_patient_J2" , "dialysis_patient_J3","cause_arret_cardiac","indicatrice_temperature_j0" ,   "indicatrice_temperature_j1" , "indicatrice_temperature_j2" , 
+  "indicatrice_temperature_j3" ,"gender" ,"anchor_year_group","ventilation_mechanique_J0" ,"ventilation_mechanique_J1","ventilation_mechanique_J2" ,"ventilation_mechanique_J3" 
+))
+colonnes_garder
+for (i in colonnes_caracteres) {
+  
+  
+  if (!(i %in% colonnes_garder)) {
+    # Convertir la colonne en vecteur
+  colonne_vecteur <- unlist(data[, i])
+  
+  # Convertir le vecteur en données numériques
+  data[, i] <- as.numeric(colonne_vecteur)
+  
+  }
+}
+
+```
+
+
+```{r}
+str(data)
+```
+
+```{r}
+# Récupère les colonnes de types numeric
+colonnes_numeric <- which(sapply(data, is.numeric))
+#colonnes_numeric
+```
+
+Ici  les faux numériques sont :
+
+"heart_failure" ,"obesity","chronic_pulmonary_disease"  ,     "liver_disease","diabetes","renal_disease","malignant_cancer" ,"aids", "cause_arret_cardiac", "indicatrice_deces_j0", "indicatrice_deces_j1" ,"indicatrice_deces_j2" , "indicatrice_deces_j3","indicatrice_deces_j14" ,"indicatrice_deces_j30"
+
+# Transformation des faux numériques en caractères.
+
+```{r include=FALSE}
+colonnes_faux_num<-which(colnames(data) %in% c(
+  "heart_failure" ,"obesity","chronic_pulmonary_disease",       "liver_disease","diabetes","renal_disease","malignant_cancer" ,"aids", "cause_arret_cardiac", "indicatrice_deces_j0", "indicatrice_deces_j1" ,"indicatrice_deces_j2" , "indicatrice_deces_j3","indicatrice_deces_j14" ,"indicatrice_deces_j30"
+))
+
+for (i in colonnes_faux_num) {
+  
+  
+    # Convertir la colonne en vecteur
+  colonne_vecteur <- unlist(data[, i])
+  
+  # Convertir le vecteur en caractères
+  data[, i] <- as.character(colonne_vecteur)
+  
+  
+}
+
+```
+
+
+# Transformation des caractères en factor
+
+
+
+
+```{r}
+df <- data %>%
+  mutate_if(is.character, ~factor(., exclude = "NULL"))
+
+```
+
+
+
+
+# Statistique univarié à J0
+
+```{r}
+glimpse(df)
+```
+
+```{r}
+
+freq(df$anchor_year_group, valid = FALSE, total = TRUE, sort = "dec")
+```
+Les séjours des patients qui constituent notre population d'étude sont répartis entre 2008 et 2019. plus précisement, 30.7% sur la période 2008-2010, 25.4% sur 2011-2013, 24.9% sur 2014-2016 et en fin 19% sur 2017-2019.
+
+
+
+# Variables qualitatives
+
+```{r}
+summary(df$anchor_age)
+```
+L'âge des patients varie entre 19 et 91 ans avec une moyenne de 64.16 ans. En outre, la moitié de la population a plus de 66 ans.
+
+
+```{r}
+
+freq(df$gender, valid = FALSE, total = TRUE, sort = "dec")
+```
+Population à majorité masculine, soit 38% de femmes contre 62% d'hommes.
+
+```{r}
+# Temprérature à JO
+freq(df$indicatrice_temperature_j0, valid = FALSE, total = TRUE, sort = "dec")
+```
+A J0, 6.2% des patients sont en hyperthermie, cependant on a pas l'information pour 58.7% d'entre eux.
+
+```{r}
+#indicatrice de la glycémie à J0
+freq(df$indicatrice_glycemie_j0, valid = FALSE, total = TRUE, sort = "dec")
+```
+A j0, 26.8% des patients ont une glycémie normale c'est à dire comprise entre 0.7 et 1.8. On a pas l'information pour 17 patients. "doit-on calculer les pourcentges en mettant de coté les NA"?
+
+
+
+#Le nombre de décès à J0
+```{r}
+#indicatrice_deces_j0
+freq(df$indicatrice_deces_j0, valid = FALSE, total = TRUE, sort = "dec")
+```
+12,3% des patients sont décédés à J0, c'est à dire le jour de leur arret cardiaque.
+
+#Nombre d'individus dyalisés à J0
+```{r}
+# Individus dialysés à J0
+freq(df$dialysis_patient_J1, valid = FALSE, total = TRUE, sort = "dec")
+```
+1.6% des patients ont été dialysés le jour de leur arret cardiaque.
+
+#Les individus qui ont une défaillance cardiaque
+```{r}
+# heart_failure
+
+freq(df$heart_failure, valid = FALSE, total = TRUE, sort = "dec")
+
+```
+42.3% des patients souffrent d'une insuffisance cardiaque
+
+
+#Les individus diagnostiqués obèses
+```{r}
+#obesity  
+freq(df$obesity, valid = FALSE, total = TRUE, sort = "dec")
+```
+10.5% d'entre eux souffrent d'obésité.
+
+#Les individus ayant une maladie pulmonaire chronique
+```{r}
+#chronic_pulmonary_disease  
+freq(df$chronic_pulmonary_disease, valid = FALSE, total = TRUE, sort = "dec")
+```
+27% souffrent de maladie pulmonaire chronique.
+
+#Les individus qui ont une maladie hépathique
+```{r}
+#liver_disease        
+freq(df$liver_disease, valid = FALSE, total = TRUE, sort = "dec")
+```
+19.4% trainent une maladie hépatique
+
+#Les individus qui ont le diabète
+```{r}
+#diabetes       
+freq(df$diabetes, valid = FALSE, total = TRUE, sort = "dec")
+```
+32.9% des patients avaient du diabète
+
+#Les individus qui ont une maladie rénale
+```{r}
+#renal_disease  
+freq(df$renal_disease, valid = FALSE, total = TRUE, sort = "dec")
+```
+26.3% d'entre eux ont une maladie rénale
+
+#Les individus atteint du cancer
+```{r}
+#malignant_cancer 
+freq(df$malignant_cancer, valid = FALSE, total = TRUE, sort = "dec")
+
+```
+10.2% ont un cancer
+
+#Les individus atteint du VIH
+```{r}
+#aids   
+freq(df$aids, valid = FALSE, total = TRUE, sort = "dec")
+```
+Rien que 6 patients parmi les 1109 sont atteints du SIDA
+
+# variables quantitatives
+```{r}
+#index cardiaque
+
+
+summary(df$`index_cardiac_min_J0(L/min/m2)`)
+summary(df$`index_cardiac_moyen_J0(L/min/m2)`)
+```
+Trop de NA
+```{r}
+#thermodilution
+
+
+summary(df$`thermodilutionCO_max_J0(L/min)`)
+summary(df$`thermodilutionCO_min_J0(L/min)`)
+```
+trop de NA
+```{r}
+
+#phlabevents_J0
+summary(df$phlabevents_J0)
+```
+"Meme question à propos des NA" le ph des patients à J0 varie 6.49 et 7.59, le ph moyen est de 7.25 et la moitié des patients ont un ph supérieurvà 7.26
+
+```{r}
+#albumin_J0
+summary(df$`albumin_J0(g/dL)`)
+```
+L'albumine des patients à J0 varie entre 1 et 5.1. la moyenne est de 3.16. Lorsque pour la moitié des patients, l'albumine est supérieure à 3.2
+
+
+```{r}
+#lactateJ0
+summary(df$`lactate_J0(mmol/L)` )
+
+```
+En ce qui concerne le lactate des patients à J0, il est compris entre 0.6 et 27, a une moyenne de 6.93 et Et est compris entre 3.5 et 9.4 pour 3/4 des patients.
+
+```{r}
+# PaO2_FiO2
+summary(df$PaO2_FiO2_max_J0 )
+summary(df$PaO2_FiO2_min_J0 )
+
+```
+Le rapport PaO2/Fi02 max à J0 bascule entre 19 et 1860. La moyenne est de 280.5 et pour 3/4 des patients cette variable est comprise entre 132.5 et 366.
+Le rapport PaO2/Fi02 min à J0 bascule entre 14 et 1215. La moyenne est de 108 et pour 3/4 des patients cette variable est comprise entre 61.67 et 200.
+```{r}
+# vis
+summary(df$vis_j0)
+```
+Le score VIS à J0 varie entre 0.2 et 295.16, de valeur moyenne 35.96 et 3/4 des patients ont un score VIS à J0 compris entre 9.43 et 49.31
+```{r}
+# bilan_entre_sortie_j0
+summary( df$bilan_entre_sortie_j0 )
+```
+Pour ce qui est du bilan entrée sortie à J0, il est compris entre -13823.6 et 24337, la moitié des patients ont un bilan à J0 supérieur à 1266.8. 75% des patients ont le leur compris entre 409.7 et 2740
+
+
+
+
+# Statistique bivariée
+
+```{r}
+#Croisement
+boxplot(df$bilan_entre_sortie_j0 ~ df$gender, outline= FALSE)
+shapiro.test(df$bilan_entre_sortie_j0)
+
+kruskal.test(df$bilan_entre_sortie_j0~ df$gender)
+
+```
+Il semble ne pas avoir de différence signicative entre le bilan entrée sortie à J0 des femmes et celui des hommes.
+
+La p-value associée au test de Kruskal-Wallis vaut 0.49 qui est supérieure à 0.05, au seuil de 5% on ne peut rejeter l'hypothèse nulle d'égalité des médianes de bilan entrée/sortie entre les hommes et les femmes , ainsi il n'y a pas de différence significative entre les deux.
+
+
+```{r}
+boxplot(df$bilan_entre_sortie_j0 ~ df$dialysis_patient_J0, outline = FALSE)
+
+kruskal.test(df$bilan_entre_sortie_j0~ df$dialysis_patient_J0)
+
+```
+Les patients dialysés semblent avoir des bilan entrée/sortie plus faibles que ceux qui ne l'ont pas été.
+
+La p-value associée au test de Kruskal-Wallis vaut 0.01 qui est inférieure à 0.5, au seuil de 5% on rejette l'hypothèse nulle d'égalité des médianes de bilan entrée/sortie entre les patients dialysés à J0 et ceux non , ainsi il y a une différence significative entre les deux
+ 
+ 
+
+```{r}
+#heart_failure 
+boxplot(df$bilan_entre_sortie_j0 ~ df$heart_failure, outline= FALSE )
+kruskal.test(df$bilan_entre_sortie_j0~ df$heart_failure)
+```
+Les patients ayant une maladie cardiaque semblent avoir des bilan entrée/sortie plus faibles que ceux qui ne l'ont pas.
+
+La p-value associée au test de Kruskal-Wallis vaut 2.33*10-8 qui est inférieure à 0.05, au seuil de 5% on rejette l'hypothèse nulle d'égalité des médianes de bilan entrée/sortie entre les patients ayant une maladie cardiaque et ceux non , ainsi il y a une différence significative entre les deux.
+ 
+
+```{r}
+#obesity     
+boxplot(df$bilan_entre_sortie_j0 ~ df$obesity, outline = FALSE)
+kruskal.test(df$bilan_entre_sortie_j0~ df$obesity)
+```
+Il ne semble pas avoir une différence significative de bilan à J0 entre les patients souffrant d'obesité et ceux qui n'en souffrent pas.
+
+La p-value associée au test de Kruskal-Wallis vaut 0.31 qui est supérieure à 0.05, au seuil de 5% on ne peut rejeter l'hypothèse nulle d'égalité des médianes de bilan entrée/sortie entre les patients obèses et les non obèses , ainsi il n'y a pas de différence significative entre les deux.
+
+
+```{r}
+#chronic_pulmonary_disease    
+boxplot(df$bilan_entre_sortie_j0 ~ df$chronic_pulmonary_disease, outline = FALSE)
+kruskal.test(df$bilan_entre_sortie_j0~ df$chronic_pulmonary_disease)
+```
+Il ne semble pas avoir une différence significative de bilan à J0 entre les patients souffrant d'une maladie pulmonaire chronique et ceux qui n'en ont pas.
+
+La p-value associée au test de Kruskal-Wallis vaut 0.11 qui est supérieure à 0.05, au seuil de 5% on ne peut rejeter l'hypothèse nulle d'égalité des médianes de bilan entrée/sortie entre les patients ayant une maladie pulmonaire chronique  et ceux non , ainsi il n'y a pas de différence significative entre les deux groupes
+
+
+```{r}
+#liver_disease   
+boxplot(df$bilan_entre_sortie_j0 ~ df$liver_disease, outline = FALSE)
+kruskal.test(df$bilan_entre_sortie_j0~ df$liver_disease)
+```
+Il  semble  avoir une différence significative de bilan à J0 entre les patients atteints d'une maladie hépatique et ceux qui n'en ont pas.Notamment des valeurs plus elevées chez les malades.
+
+
+La p-value associée au test de Kruskal-Wallis vaut 0.0007 qui est inférieure à 0.05, au seuil de 5% on rejette l'hypothèse nulle d'égalité des médianes de bilan entrée/sortie entre les patients ayant une maladie hépatique et ceux n'ayant pas , ainsi il y a une différence significative entre les deux groupes.
+
+
+
+
+```{r}
+# diabète  
+boxplot(df$bilan_entre_sortie_j0 ~ df$diabetes, outline= FALSE)
+kruskal.test(df$bilan_entre_sortie_j0~ df$diabetes)
+
+```
+Il ne semble pas avoir une différence significative de bilan à J0 entre les patients atteints de diabète et les non diabétiques.
+
+La p-value associée au test de Kruskal-Wallis vaut 0.07 qui est supérieure à 0.05, au seuil de 5% on ne peut rejeter l'hypothèse nulle d'égalité des médianes de bilan entrée/sortie entre les patients diabétiques et ceux non , ainsi il n'y a pas de différence significative entre les deux groupes.
+
+```{r}
+# renal desease 
+boxplot(df$bilan_entre_sortie_j0 ~ df$renal_disease, outline = FALSE)
+kruskal.test(df$bilan_entre_sortie_j0~ df$renal_disease)
+```
+Les patients ayant une maladie rénale semblent avoir des bilan entrée sortie à J0 plus faibles que ceux qui n'ont pas.
+
+La p-value associée au test de Kruskal-Wallis vaut 3.73*10-6 qui est inférieure à 0.05, au seuil de 5% on rejette l'hypothèse nulle d'égalité des médianes de bilan entrée/sortie entre les patients ayant une maladie rénale et ceux ne l'ayant pas , ainsi il y a une différence significative entre les deux groupes.
+```{r}
+# malignant_cancer            
+boxplot(df$bilan_entre_sortie_j0 ~ df$malignant_cancer)
+kruskal.test(df$bilan_entre_sortie_j0~ df$malignant_cancer)
+```
+Il ne semble pas avoir une différence significative de bilan à J0 entre les patients atteints de cancer et ceux non atteints.
+
+La p-value associée au test de Kruskal-Wallis vaut 0.85 qui est supérieure à 0.05, au seuil de 5% on ne peut rejeter l'hypothèse nulle d'égalité des médianes de bilan entrée/sortie entre les patients atteints d'un cancer et ceux non , ainsi il n'y a pas de différence significative entre les deux groupes.
+
+```{r}
+# aids            
+boxplot(df$bilan_entre_sortie_j0 ~ df$aids)
+kruskal.test(df$bilan_entre_sortie_j0~ df$aids)
+```
+Il y a trop peu d'individus ayant le VIH.
+p value 0.36> 0.05 On ne peut rejeter l'hypothèse nulle
+```{r}
+# indicatrice_deces_J0 vs bilan_entre_sortie_J0           
+boxplot(df$bilan_entre_sortie_j0 ~ df$indicatrice_deces_j0)
+kruskal.test(df$bilan_entre_sortie_j0~ df$indicatrice_deces_j0)
+
+```
+Les patients décédés à J0 semblent avoir des valeurs plus elevées de bilan entrée sortie à J0 par rapport à ceux encore vivants à J0.
+
+La p-value associée au test de Kruskal-Wallis vaut 0.001 qui est inférieure à 0.05, au seuil de 5% on rejette l'hypothèse nulle d'égalité des médianes de bilan entrée/sortie entre les patients décédés le jour de leur arrêt cardiaque et ceux ayant survécu au premier jour , ainsi il y a une différence significative entre les deux groupes.
+
+```{r}
+# bilan_entrée_sortie_J0 vs indicatrice_temperature à J0           
+boxplot(df$bilan_entre_sortie_j0 ~ df$indicatrice_temperature_j0)
+kruskal.test(df$bilan_entre_sortie_j0~ df$indicatrice_temperature_j0)
+```
+Il ne semble pas avoir une différence significative de bilan à J0 entre les patients en hyperthermie  et ceux non.
+Le test de Kruskal- Wallis confirme cela au seuil de 5% avec une p-value égale à 0.79
+
+```{r}
+# bilan_entrée_sortie_J0 vs indicatrice_glycemieJ0           
+boxplot(df$bilan_entre_sortie_j0 ~ df$indicatrice_glycemie_j0)
+kruskal.test(df$bilan_entre_sortie_j0~ df$indicatrice_glycemie_j0)
+```
+Les patients ayant une glycémie anormale à J0, c'est à dire inférieure à 0.7 et supérieure à 1.7 sempblent avoir à J0 des bilan entrée sortie un peu elevés que ceux qui ont une glycémie normale.
+
+La p-value associée au test de Kruskal-Wallis vaut 0.035 qui est inférieure à 0.05, au seuil de 5% on rejette l'hypothèse nulle d'égalité des médianes de bilan entrée/sortie entre les patients ayant une glycémie normale  et ceux ayant non, ainsi il y a une différence significative entre les deux groupes.
+
+
+
+```{r warning=FALSE}
+#age vs bilan entree sortie à J0
+ggplot(df) + geom_point(aes(x = anchor_age, y = bilan_entre_sortie_j0))
+
+cor.test(df$anchor_age, df$bilan_entre_sortie_j0,method = "spearman",use = "complete.obs" )
+
+```
+
+Il ne semble pas avoir de corrélation entre l'age et le bilan entrée sortie à J0 graphiquement.
+Cependant le test de corrélation de Spearman révèle qu'il existe une faible corrélation négative entre les deux. en effet la p-value associée au test est égale à 4.19*10-5, au seul de 5%, on rejette l'hypothèse nulle.
+
+Warning ce test est sensible aux valeurs aberrantes
+
+```{r warning=FALSE}
+ggplot(df) + geom_point(aes(x = `lactate_J0(mmol/L)`, y = bilan_entre_sortie_j0))
+cor.test(df$`lactate_J0(mmol/L)`, df$bilan_entre_sortie_j0,method = "spearman",use = "complete.obs" )
+```
+Il ne semble pas avoir de corrélation entre la valeur de lactate à J0 et le bilan entrée sortie à J0.
+
+Cependant le test de corrélation de Spearman révèle qu'il existe une faible corrélation positive entre les deux. en effet la p-value associée au test est égale à 7.17*10-14, au seul de 5%, on rejette l'hypothèse nulle.
+
+
+```{r message=FALSE, warning=FALSE}
+#phlabevents_J0
+ggplot(df) + geom_point(aes(x = phlabevents_J0, y = bilan_entre_sortie_j0))
+cor.test(df$phlabevents_J0, df$bilan_entre_sortie_j0,method = "spearman",use = "complete.obs" )
+```
+Il ne semble pas avoir de corrélation entre le ph à J0 et le bilan entrée sortie à J0.
+
+Cependant le test de corrélation de Spearman révèle qu'il existe une faible corrélation négative entre les deux. en effet la p-value associée au test est égale à 9.57*10-7, au seul de 5%, on rejette l'hypothèse nulle.
+
+```{r warning=FALSE}
+ggplot(df) + geom_point(aes(x = `albumin_J0(g/dL)`, y = bilan_entre_sortie_j0))
+cor.test(df$`albumin_J0(g/dL)`, df$bilan_entre_sortie_j0,method = "spearman",use = "complete.obs" )
+```
+Il ne semble pas avoir de corrélation entre l'albumine à J0 et le bilan entrée sortie à J0.
+
+Cependant le test de corrélation de Spearman révèle qu'il existe une faible corrélation négative entre les deux. en effet la p-value associée au test est égale à 0.007, au seul de 5%, on rejette l'hypothèse nulle.
+```{r warning=FALSE}
+ggplot(df) + geom_point(aes(x =`index_cardiac_min_J0(L/min/m2)`, y = bilan_entre_sortie_j0))
+```
+Trop peu de valeurs d'index cardiaque
+
+# Statistiques descriptives à J1
+
+Pour faire la statistique descriptive à J1, on enlève tous ceux qui sont morts à JO.
+  
+```{r}
+# Selectionne tous les individus qui ne sont pas morts à J0
+df1<-df %>% 
+  filter(indicatrice_deces_j0==0)
+```
+
+
+# Statistique univarié à J1
+
+Bref aperçu de toutes les variables.
+
+```{r}
+glimpse(df1)
+```
+
+
+# Variables qualitatives
+
+```{r}
+summary(df1$anchor_age)
+```
+la distribution l'age pour les individus ayant survécu au premier jour est la meme que celle de la population générale
+
+
+```{r}
+
+freq(df1$gender, valid = FALSE, total = TRUE, sort = "dec")
+```
+
+sur la population d'individus ayant survécu au premier jour, la répartion selon le sexe est pratiquement la même. Le pourcentage de femmes a légèrement diminué
+```{r}
+# Temprérature à J1
+freq(df1$indicatrice_temperature_j1, valid = FALSE, total = TRUE, sort = "dec")
+```
+A J2, 8.3% des patients sont en hyperthermie.
+
+```{r}
+#indicatrice de la glycémie à J1
+freq(df1$indicatrice_glycemie_j1, valid = FALSE, total = TRUE, sort = "dec")
+```
+48.7% des patients à J2 ont une glycémie anormale.
+
+#Le nombre de décès à J1
+```{r}
+#indicatrice_deces_j1
+freq(df1$indicatrice_deces_j1, valid = FALSE, total = TRUE, sort = "dec")
+```
+Parmi les patients ayant survécu à J0, 18,2% sont décédés à J1, soit le lendemain de leur arret cardiaque.
+
+#Nombre d'individus dyalisés à J1
+```{r}
+# Individus dialysés à J1
+freq(df1$dialysis_patient_J1, valid = FALSE, total = TRUE, sort = "dec")
+```
+Trop de valeurs manquantes(85.7%), 1.8% ont été dialysés
+
+#Les individus qui ont une défaillance cardiaque
+```{r}
+# heart_failure
+
+freq(df1$heart_failure, valid = FALSE, total = TRUE, sort = "dec")
+
+```
+Le pourcentage de patients encore vivants après J0 et ayant une défaillance cardiaque est légèrement supérieur  au pourcentage à J0 passant de 42.3 à 43.5
+
+#Les individus diagnostiqués obèses
+```{r}
+#obesity  
+freq(df1$obesity, valid = FALSE, total = TRUE, sort = "dec")
+```
+Le pourcentage de patients souffrant d'obésité qui est de 10.8 quant à lui n'a pratiquement pas bougé 
+
+#Les individus ayant une maladie pulmonaire chronique
+```{r}
+#chronic_pulmonary_disease  
+freq(df1$chronic_pulmonary_disease, valid = FALSE, total = TRUE, sort = "dec")
+```
+Le pourcentage de patients souffrant de maladie pulmonaire chronique qui est de 26.8% n'a pratiquement pas bougé 
+
+#Les individus qui ont une maladie hépathique
+```{r}
+#liver_disease        
+freq(df1$liver_disease, valid = FALSE, total = TRUE, sort = "dec")
+```
+Le pourcentage de patients encore vivants après J0 et ayant une une maladie hépatique est légèrement inférieur  au pourcentage à J0. passant de 19.5% à 18.9%
+
+#Les individus qui ont le diabète
+```{r}
+#diabetes       
+freq(df1$diabetes, valid = FALSE, total = TRUE, sort = "dec")
+```
+Le pourcentage de patients souffrant de diabète qui est de 33.1%.  
+#Les individus qui ont une maladie rénale
+```{r}
+#renal_disease  
+freq(df1$renal_disease, valid = FALSE, total = TRUE, sort = "dec")
+```
+Parmi les patients ayant survécu à J0, 26.9% ont une maladie rénale.
+
+#Les individus atteint du cancer
+```{r}
+#malignant_cancer 
+freq(df1$malignant_cancer, valid = FALSE, total = TRUE, sort = "dec")
+
+```
+Parmi les patients ayant survécu à J0, 9.7% sont atteints d'un cancer.
+
+#Les individus atteint du VIH
+```{r}
+#aids   
+freq(df1$aids, valid = FALSE, total = TRUE, sort = "dec")
+```
+Parmi les patients ayant survécu à J0, 4 des 976 sont atteints du VIH.
+
+# variables quantitatives
+
+```{r}
+#index cardiaque
+
+
+summary(df1$`index_cardiac_min_J1(L/min/m2)`)
+summary(df1$`index_cardiac_moyen_J1(L/min/m2)`)
+```
+
+```{r}
+#thermodilution
+
+
+summary(df1$`thermodilutionCO_max_J1(L/min)`)
+summary(df1$`thermodilutionCO_min_J1(L/min)`)
+```
+
+```{r}
+
+#phlabevents_J1
+summary(df1$phlabevents_J1)
+```
+Le ph moyen à j1 est de 7.331. Pour 3/4 des patients, le ph à J1 est compris entre 7.28 et 7.56
+```{r}
+#albumin_J1
+summary(df1$`albumin_J1(g/dL)`)
+```
+696 Na, l'albumine à J1 moyenne est 2.9, et 75% des patients ont leur albumine à j1 compris entre 2.5 et 3.3
+```{r}
+#lactateJ1
+summary(df1$`lactate_J0(mmol/L)` )
+
+```
+En ce qui concerne le lactate à J1, il est de moyenne 6.42 et varie entre 3.3 et 8.7 pour les 3/4 des patients 
+```{r}
+# PaO2_FiO2
+summary(df1$PaO2_FiO2_max_J1 )
+summary(df1$PaO2_FiO2_min_J1 )
+
+```
+A J1, le rapport PaO2/FiO2 max est de moyenne 307.1, et est compris entre 180.9 et 378 pour 75% des patients.
+A J1, le rapport PaO2/FiO2 min est de moyenne 158.41, et est compris entre 77 et 220.5 pour 75% des patients.
+```{r}
+# vis à J1
+summary(df1$vis_j1)
+```
+De moyenne 14.55 à J1, le score VIS est compris entre 3.18 et 19.7 pour 3/4 des patients.  
+```{r}
+# bilan_entre_sortie_j1
+summary( df1$bilan_entre_sortie_j1 )
+```
+Le bilan entrée sortie à J1 quant à lui varie entre -13060 et 23828.7. Néanmoins, 75% des patients ont leur bilan entrée sortie compris entre 443.2 et 2953.3.
+
+
+# Statistique bivariée J1
+
+```{r}
+#bilan vs geder à j1 
+boxplot(df1$bilan_entre_sortie_j1 ~ df1$gender, outline = FALSE)
+kruskal.test(df1$bilan_entre_sortie_j1~ df1$gender)
+```
+Il ne semble pas avoir de différence signicative entre le bilan entrée sortie à J1 des hommes et des femmes.
+La p-value associée au test de Kruskal-Wallis vaut 0.072 qui est supérieure à 0.05, au seuil de 5% on ne peut rejeter l'hypothèse nulle d'égalité des médianes de bilan entrée/sortie entre les hommes et les femmes , ainsi il n'y a pas de différence significative entre les deux.
+
+
+```{r}
+##bilan j1 vs dialysisj1
+boxplot(df1$bilan_entre_sortie_j1 ~ df1$dialysis_patient_J1, outline = FALSE)
+kruskal.test(df1$bilan_entre_sortie_j1~ df1$dialysis_patient_J1)
+```
+
+Les plus grandes valeurs de bilan entrée sortie à J1 sont enregistrées chez ceux qui n'ont pas été dialysés à J1. la médiane du bilan entrée sortie à J1 chez les patients non dialysés à J1 est supérieure au troisième quartile du bilan entrée sortie à J1 chez les patients dialysés.
+
+La p-value associée au test de Kruskal-Wallis vaut 0.0037 qui est inférieure à 0.5, au seuil de 5% on rejette l'hypothèse nulle d'égalité des médianes de bilan entrée/sortie à J1 entre les patients dialysés à J1 et ceux non , ainsi il y a une différence significative entre les deux.
+ 
+```{r}
+#heart_failure vs bilan J1
+boxplot(df1$bilan_entre_sortie_j1 ~ df1$heart_failure, outline = FALSE)
+kruskal.test(df1$bilan_entre_sortie_j1~ df1$heart_failure)
+```
+Les plus grandes valeurs de bilan entrée sortie à J1 sont enregistrées chez ceux qui n'ont pas défaillance cardiaque.
+
+La p-value associée au test de Kruskal-Wallis vaut 7.40*10-10 qui est inférieure à 0.05, au seuil de 5% on rejette l'hypothèse nulle d'égalité des médianes de bilan entrée/sortie à J1 entre les patients ayant une maladie cardiaque et ceux non , ainsi il y a une différence significative entre les deux.
+```{r}
+#obesity  vs bilan j1    
+boxplot(df1$bilan_entre_sortie_j1 ~ df1$obesity, outline= FALSE)
+kruskal.test(df1$bilan_entre_sortie_j1~ df1$obesity)
+```
+A J1, les valeurs du bilan entrée sortie des patients non obèses sont légèrement supérieures à celles des patients souffrant d'obésité.
+
+Par ailleurs, La p-value associée au test de Kruskal-Wallis vaut 0.11 qui est supérieure à 0.05, au seuil de 5% on ne peut rejeter l'hypothèse nulle d'égalité des médianes de bilan entrée/sortie à J1 entre les patients obèses et les non obèses , ainsi il n'y a pas de différence significative entre les deux
+
+```{r}
+#chronic_pulmonary_disease vs bilan j1    
+boxplot(df1$bilan_entre_sortie_j1 ~ df1$chronic_pulmonary_disease, outline = FALSE)
+kruskal.test(df1$bilan_entre_sortie_j1~ df1$chronic_pulmonary_disease)
+```
+Il semble ne pas avoir de différence significative de bilan entrée sortie à J1 entre les patients ayant une maladie pulmonaire et ceux qui ne l'ont pas.
+
+La p-value associée au test de Kruskal-Wallis vaut 0.054 qui est supérieure à 0.05, au seuil de 5% on ne peut rejeter l'hypothèse nulle d'égalité des médianes de bilan entrée/sortie à J1 entre les patients ayant une maladie pulmonaire chronique  et ceux non , ainsi il n'y a pas de différence significative entre les deux groupes
+```{r}
+#liver_disease  vs bilan j1 
+boxplot(df1$bilan_entre_sortie_j1 ~ df1$liver_disease, outline = FALSE)
+kruskal.test(df1$bilan_entre_sortie_j1~ df1$liver_disease)
+```
+A J1, les patients ayant une maladie hépatique semblent avoir de plus grandes valeurs de bilan entrée sortie à J1 par rapport à ceux qui ne l'ont pas. 
+
+Par ailleurs, La p-value associée au test de Kruskal-Wallis vaut 0.051 qui est supérieure à 0.05, au seuil de 5% on ne peut rejeter l'hypothèse nulle d'égalité des médianes de bilan entrée/sortie à J1 les patients ayant une maladie hépatique et ceux n'ayant pas , ainsi il n'y a pas une différence significative entre les deux groupes.
+
+
+
+```{r}
+# diabetes vs bilan à j1 
+boxplot(df1$bilan_entre_sortie_j1 ~ df1$diabetes, outline = FALSE)
+kruskal.test(df1$bilan_entre_sortie_j1~ df1$diabetes)
+```
+A J1, les patients ayant du diabète semblent enregistrer de plus faibles valeurs de bilan entrée sortie à J1 par rapport à ceux qui ne l'ont pas.
+
+La p-value associée au test de Kruskal-Wallis vaut 0.00042 qui est inférieure à 0.05, au seuil de 5% on ne peut rejeter l'hypothèse nulle d'égalité des médianes de bilan entrée/sortie à J1 entre les patients diabétiques et ceux non , ainsi il y a une de différence significative entre les deux groupes.
+
+```{r}
+# renal disease vs bilan j1
+boxplot(df1$bilan_entre_sortie_j1 ~ df1$renal_disease, outline = FALSE)
+kruskal.test(df1$bilan_entre_sortie_j1~ df1$renal_disease)
+```
+A J1, les patients ayant une maladie rénale semblent avoir de valeurs beaucoup plus faibles de bilan entrée sortie à J1 par rapport à ceux qui ne l'ont pas.
+
+La p-value associée au test de Kruskal-Wallis vaut 2.11*10-10 qui est inférieure à 0.05, au seuil de 5% on rejette l'hypothèse nulle d'égalité des médianes de bilan entrée/sortie entre à J1 les patients ayant une maladie rénale et ceux ne l'ayant pas , ainsi il y a une différence significative entre les deux groupes.
+
+
+```{r}
+# malignant_cancer  vs bilan j1         
+boxplot(df1$bilan_entre_sortie_j1 ~ df1$malignant_cancer, outline = FALSE)
+kruskal.test(df1$bilan_entre_sortie_j1~ df1$malignant_cancer)
+```
+Il semble ne pas avoir de différence significative de bilan entrée/sortie à J1 entre les patients atteints d'un cancer et ceux non atteints.
+
+La p-value associée au test de Kruskal-Wallis vaut 0.53 qui est supérieure à 0.05, au seuil de 5% on ne peut rejeter l'hypothèse nulle d'égalité des médianes de bilan entrée/sortie à J1 entre les patients atteints d'un cancer et ceux non , ainsi il n'y a pas de différence significative entre les deux groupes.
+```{r}
+# aids     vs bilan j1       
+boxplot(df1$bilan_entre_sortie_j1 ~ df1$aids, outline = FALSE)
+kruskal.test(df1$bilan_entre_sortie_j1~ df1$aids)
+```
+A J1, les quelques patients(4), atteints du VIH ont les valeurs de bilan/entrée sortie à J1 plus elevées que ceux qui ne sont pas atteints.
+
+p value 0.0057< 0.05 On rejette l'hypothèse nulle d'égalité des médianes entre les 2 groupes
+```{r}
+# deces à J1 vs bilan j1          
+boxplot(df1$bilan_entre_sortie_j1 ~ df1$indicatrice_deces_j1, outline= FALSE)
+kruskal.test(df1$bilan_entre_sortie_j1~ df1$indicatrice_deces_j1)
+```
+Il semble ne pas avoir de différence significative entre les bilans entrée/sortie à J1 des patients décédés à J1 et ceux qui ont survécu après J1.
+
+La p-value associée au test de Kruskal-Wallis vaut 0.47 qui est supérieure à 0.05, au seuil de 5% on ne peut rejeter l'hypothèse nulle d'égalité des médianes de bilan entrée/sortie à J1 entre les patients décédés le lendemain de leur arrêt cardiaque et ceux ayant survécu, ainsi il n'y a pas de différence significative entre les deux groupes.
+
+```{r}
+# Hyperthermie  vs bilan j1         
+boxplot(df1$bilan_entre_sortie_j1 ~ df1$indicatrice_temperature_j1, outline= FALSE)
+kruskal.test(df1$bilan_entre_sortie_j1~ df1$indicatrice_temperature_j1)
+```
+Les patients ayant hyperthermie à J1, ont de bilans entrée sortie légèrement plus faibles que ceux qui n'ont pas d'hyperthermie à J1.
+Cependant, La p-value associée au test de Kruskal-Wallis vaut 0.21 qui est supérieure à 0.05, au seuil de 5% on ne peut rejeter l'hypothèse nulle d'égalité des médianes de bilan entrée/sortie à J1 entre les patients en hyperthermie à J1 et ceux qui ne le sont pas, ainsi il n'y a pas de différence significative entre les deux groupes.
+
+
+```{r}
+# Glycémie  vs bilan j1          
+boxplot(df1$bilan_entre_sortie_j1~ df1$indicatrice_glycemie_j1, outline = FALSE)
+kruskal.test(df1$bilan_entre_sortie_j1~ df1$indicatrice_glycemie_j1)
+```
+Les patients ayant une glycémie anormale à J1, une glycémie soit inférieure à 0.7 soit supérieure à 1.7 ont de bilans entrée sortie légèrementplus elevés que ceux qui ont glycémie normale.
+
+La p-value associée au test de Kruskal-Wallis vaut 0.0025 qui est inférieure à 0.05, au seuil de 5% on rejette l'hypothèse nulle d'égalité des médianes de bilan entrée/sortie à J1 entre les patients ayant une glycémie normale  et ceux ayant non, ainsi il y a une différence significative entre les deux groupes.
+
+```{r warning=FALSE}
+#bilan j1 vs age
+ggplot(df1) + geom_point(aes(x = anchor_age, y = bilan_entre_sortie_j1))
+cor.test(df1$anchor_age, df1$bilan_entre_sortie_j1,method = "spearman",use = "complete.obs" )
+```
+Il ne semble pas avoir de corrélation entre l'age et le bilan entrée/sortie à J1 graphiquement.
+Cependant le test de corrélation de Spearman révèle qu'il existe une très faible corrélation négative entre les deux. en effet la p-value associée au test est égale à 0.03, au seul de 5%, on rejette l'hypothèse nulle.
+
+```{r warning=FALSE}
+#lactate_j1 vs bilan j1
+ggplot(df1) + geom_point(aes(x = `lactate_J1(mmol/L)`, y = bilan_entre_sortie_j1))
+cor.test(df1$`lactate_J1(mmol/L)`, df1$bilan_entre_sortie_j1,method = "spearman",use = "complete.obs" )
+```
+Il ne semble pas avoir de corrélation entre la valeur de lactate à J1 et le bilan/entrée sortie à J1.
+
+Cependant le test de corrélation de Spearman révèle qu'il existe une faible corrélation positive entre les deux. en effet la p-value associée au test est égale à 6.02*10-11, au seul de 5%, on rejette l'hypothèse nulle.
+```{r message=FALSE, warning=FALSE}
+#phlabevents_J1 vs bilan j1
+ggplot(df1) + geom_point(aes(x = phlabevents_J1, y = bilan_entre_sortie_j1))
+cor.test(df1$phlabevents_J1, df1$bilan_entre_sortie_j1,method = "spearman",use = "complete.obs" )
+```
+Il ne semble pas avoir de corrélation entre le ph à J1 et le bilan entrée/sortie à J1.
+
+Cependant le test de corrélation de Spearman révèle qu'il existe une faible corrélation négative entre les deux. en effet la p-value associée au test est égale à 5.54*10-8, au seul de 5%, on rejette l'hypothèse nulle.
+```{r warning=FALSE}
+#albumine j1 vs bilan j1
+ggplot(df1) + geom_point(aes(x = `albumin_J1(g/dL)`, y = bilan_entre_sortie_j1))
+cor.test(df1$`albumin_J1(g/dL)`, df1$bilan_entre_sortie_j1,method = "spearman",use = "complete.obs" )
+
+```
+Il ne semble pas avoir de corrélation entre l'albumine à J1 et le bilan entrée/sortie à J1.
+
+Cependant le test de corrélation de Spearman révèle qu'il existe une faible corrélation négative entre les deux. en effet la p-value associée au test est égale à 0.0001, au seul de 5%, on rejette l'hypothèse nulle.
+```{r warning=FALSE}
+# bilan j1 vs indexj1
+ggplot(df1) + geom_point(aes(x =`index_cardiac_min_J1(L/min/m2)`, y = bilan_entre_sortie_j1))
+```
+
+# Statistiques descriptives à J2
+
+Pour faire la statistique descriptive à J2, on enlève tous les patients qui sont morts à J1.
+  
+```{r}
+# Selectionne tous les individus qui ne sont pas morts à J0 et à j1
+df2<-df %>% 
+  filter(indicatrice_deces_j0==0 & indicatrice_deces_j1==0)
+```
+
+
+# Statistique univarié à J2
+
+Bref aperçu de toutes les variables.
+
+```{r}
+glimpse(df2)
+```
+
+
+# Variables qualitatives
+
+```{r}
+# Temprérature à J2
+freq(df2$indicatrice_temperature_j2, valid = FALSE, total = TRUE, sort = "dec")
+```
+ 8.4% des patients sont en hyperthermie à J2
+```{r}
+#indicatrice de la glycémie à J2
+freq(df2$indicatrice_glycemie_j2, valid = FALSE, total = TRUE, sort = "dec")
+```
+A J2, 25.4% des patients ont une glycémie anormale c'est à dire inférieure à 0.7 et supérieure à 1.8
+
+#Le nombre de décès à J2
+```{r}
+#indicatrice_deces_j2
+freq(df2$indicatrice_deces_j2, valid = FALSE, total = TRUE, sort = "dec")
+```
+Parmi les patients encore vivants après J1, 9.5% sont décédés le troisième jour.
+
+#Nombre d'individus dyalisés à J2
+```{r}
+# Individus dialysés à J2
+freq(df2$dialysis_patient_J2, valid = FALSE, total = TRUE, sort = "dec")
+```
+97% de NA
+
+# variables quantitatives
+```{r}
+#index cardiaque j2
+summary(df2$`index_cardiac_min_J2(L/min/m2)`)
+summary(df2$`index_cardiac_moyen_J2(L/min/m2)`)
+```
+
+```{r}
+#thermodilution à j2
+summary(df2$`thermodilutionCO_max_J2(L/min)`)
+summary(df2$`thermodilutionCO_min_J2(L/min)`)
+```
+
+```{r}
+
+#phlabevents_J2
+summary(df2$phlabevents_J2)
+```
+Le ph moyen à J2 est de 7.37, Pour 3/4 des patients, le ph à J2 est compris entre 7.33 et 7.42
+```{r}
+#albumin_J2
+summary(df2$`albumin_J2(g/dL)`)
+```
+l'albumine à J2 est de moyenne 2.79 et est compris entre 2.4 et 3.1 pour 3/4 des patients.
+```{r}
+#lactateJ2
+summary(df2$`lactate_J2(mmol/L)` )
+
+```
+Le lactate à J2 est de moyenne 3.09, et est compris entre 1.4 et 3.2 pour 3/4 des patients.
+```{r}
+# PaO2_FiO2 à j2
+summary(df2$PaO2_FiO2_max_J2 )
+summary(df2$PaO2_FiO2_min_J2 )
+
+```
+A J2, le rapport PaO2/FiO2 max est de moyenne 295.2, et est compris entre 185 et 353.5 pour 75% des patients.
+A J2, le rapport PaO2/FiO2 min est de moyenne 190.2, et est compris entre 107.5 et 250.6 pour 75% des patients.
+
+```{r}
+# vis à j2
+summary(df2$vis_j2)
+```
+De moyenne 12.6 à J2, le score VIS est compris entre 2.47 et 17.57 pour 3/4 des patients.
+```{r}
+# bilan_entre_sortie_j2
+summary( df2$bilan_entre_sortie_j2 )
+```
+Le bilan entrée sortie à J2 quant à lui varie entre -16284.3 et 17370.9. Néanmoins, 75% des patients ont leur bilan entrée/sortie à J2 compris entre 154.8 et 1703.
+
+
+# Statistique bivariée
+```{r}
+#bilan vs gender à j2
+boxplot(df2$bilan_entre_sortie_j2 ~ df2$gender, outline = FALSE)
+kruskal.test(df2$bilan_entre_sortie_j2~ df2$gender)
+```
+Il ne semble pas avoir de différence signicative entre le bilan entrée sortie à J2 des hommes et des femmes.
+La p-value associée au test de Kruskal-Wallis vaut 0.083 qui est supérieure à 0.05, au seuil de 5% on ne peut rejeter l'hypothèse nulle d'égalité des médianes de bilan entrée/sortie à J2 entre les hommes et les femmes , ainsi il n'y a pas de différence significative entre les deux.
+
+```{r}
+boxplot(df2$bilan_entre_sortie_j2 ~ df2$dialysis_patient_J2, outline = FALSE)
+kruskal.test(df2$bilan_entre_sortie_j2~ df2$dialysis_patient_J2)
+```
+
+Les plus grandes valeurs de bilan entrée/sortie à J2 sont enregistrées chez ceux qui n'ont pas été dialysés à J2. y a trop de NA
+
+
+```{r}
+#heart_failure vs bilan J2
+boxplot(df2$bilan_entre_sortie_j2 ~ df2$heart_failure, outline = FALSE)
+kruskal.test(df2$bilan_entre_sortie_j2~ df2$heart_failure)
+
+```
+
+Les plus grandes valeurs de bilan entrée sortie à J2 sont enregistrées chez ceux qui n'ont pas défaillance cardiaque.
+
+La p-value associée au test de Kruskal-Wallis vaut 8.42*10-10 qui est inférieure à 0.05, au seuil de 5% on rejette l'hypothèse nulle d'égalité des médianes de bilan entrée/sortie à J2 entre les patients ayant une maladie cardiaque et ceux non , ainsi il y a une différence significative entre les deux.
+
+
+```{r}
+#obesity  vs bilan j2    
+boxplot(df2$bilan_entre_sortie_j2 ~ df2$obesity, outline= FALSE)
+kruskal.test(df2$bilan_entre_sortie_j2~ df2$obesity)
+```
+Il semble ne pas avoir de différence signicative entre les bilans entrée/sortie à J2 des patients obèses et les non obèses .
+
+Par ailleurs, La p-value associée au test de Kruskal-Wallis vaut 0.23 qui est supérieure à 0.05, au seuil de 5% on ne peut rejeter l'hypothèse nulle d'égalité des médianes de bilan entrée/sortie à J2 entre les patients obèses et les non obèses , ainsi il n'y a pas de différence significative entre les deux
+
+```{r}
+#chronic_pulmonary_disease vs bilan j2    
+boxplot(df2$bilan_entre_sortie_j2 ~ df2$chronic_pulmonary_disease, outline = FALSE)
+kruskal.test(df2$bilan_entre_sortie_j2~ df2$chronic_pulmonary_disease)
+```
+Il semble ne pas avoir de différence significative de bilan entrée/sortie à J2 entre les patients ayant une maladie pulmonaire et ceux qui ne l'ont pas.
+
+La p-value associée au test de Kruskal-Wallis vaut 0.45 qui est supérieure à 0.05, au seuil de 5% on ne peut rejeter l'hypothèse nulle d'égalité des médianes de bilan entrée/sortie à J2 entre les patients ayant une maladie pulmonaire chronique  et ceux non , ainsi il n'y a pas de différence significative entre les deux groupes
+
+```{r}
+#liver_disease  vs bilan j2
+boxplot(df2$bilan_entre_sortie_j2 ~ df2$liver_disease, outline = FALSE)
+kruskal.test(df2$bilan_entre_sortie_j2~ df2$liver_disease)
+```
+A J2, les patients ayant une maladie hépatique semblent avoir de plus grandes valeurs de bilan entrée/sortie à J2 par rapport à ceux qui ne l'ont pas. 
+
+Par ailleurs, La p-value associée au test de Kruskal-Wallis vaut 0.016 qui est inférieure à 0.05, au seuil de 5% on rejette l'hypothèse nulle d'égalité des médianes de bilan entrée/sortie à J2 les patients ayant une maladie hépatique et ceux n'ayant pas , ainsi il y a une différence significative entre les deux groupes.
+
+```{r}
+# diabetes vs bilan à j2 
+boxplot(df2$bilan_entre_sortie_j2 ~ df2$diabetes, outline = FALSE)
+kruskal.test(df2$bilan_entre_sortie_j2~ df2$diabetes)
+```
+A J2, les patients ayant du diabète semblent enregistrer de plus faibles valeurs de bilan/entrée sortie à J2 par rapport à ceux qui ne l'ont pas.
+
+La p-value associée au test de Kruskal-Wallis vaut 1.65*10-5 qui est inférieure à 0.05, au seuil de 5% on ne peut rejeter l'hypothèse nulle d'égalité des médianes de bilan entrée/sortie à J2 entre les patients diabétiques et ceux non , ainsi il y a une de différence significative entre les deux groupes.
+
+```{r}
+# renal disease vs bilan j2
+boxplot(df2$bilan_entre_sortie_j2 ~ df2$renal_disease, outline = FALSE)
+kruskal.test(df2$bilan_entre_sortie_j2~ df2$renal_disease)
+```
+A J2, les patients ayant une maladie rénale semblent avoir de valeurs beaucoup plus faibles de bilan entrée sortie à J2 par rapport à ceux qui ne l'ont pas.
+
+La p-value associée au test de Kruskal-Wallis vaut 8.04*10-11 qui est inférieure à 0.05, au seuil de 5% on rejette l'hypothèse nulle d'égalité des médianes de bilan entrée/sortie entre à J2 les patients ayant une maladie rénale et ceux ne l'ayant pas , ainsi il y a une différence significative entre les deux groupes.
+
+```{r}
+# malignant_cancer  vs bilan j2        
+boxplot(df2$bilan_entre_sortie_j2 ~ df2$malignant_cancer, outline = FALSE)
+kruskal.test(df2$bilan_entre_sortie_j2~ df2$malignant_cancer)
+```
+Les patients atteints de cancer semblent présenter des bilans entrée/sortie à J2 légèrement plus elevés que ceux des non atteints.
+
+La p-value associée au test de Kruskal-Wallis vaut 0.08 qui est supérieure à 0.05, au seuil de 5% on ne peut rejeter l'hypothèse nulle d'égalité des médianes de bilan entrée/sortie à J2 entre les patients atteints d'un cancer et ceux non, il n'y a donc pas de différence significative entre les deux groupes.
+
+```{r}
+# deces à J2 vs bilan j2          
+boxplot(df2$bilan_entre_sortie_j2 ~ df2$indicatrice_deces_j2, outline= FALSE)
+kruskal.test(df2$bilan_entre_sortie_j2~ df2$indicatrice_deces_j2)
+```
+Il semble ne pas avoir de différence significative entre les bilans entrée/sortie à J2 des patients décédés à J2 et ceux qui ont survécu à J2.
+
+La p-value associée au test de Kruskal-Wallis vaut 0.97 qui est supérieure à 0.05, au seuil de 5% on ne peut rejeter l'hypothèse nulle d'égalité des médianes de bilan entrée/sortie à J2 entre les patients décédés le lendemain de leur arrêt cardiaque et ceux ayant survécu, ainsi il n'y a pas de différence significative entre les deux groupes.
+
+```{r}
+# Hyperthermie  vs bilan j2         
+boxplot(df2$bilan_entre_sortie_j2 ~ df2$indicatrice_temperature_j2, outline= FALSE)
+kruskal.test(df2$bilan_entre_sortie_j2~ df2$indicatrice_temperature_j2)
+```
+Il semble ne pas avoir de différence significative des bilans entrée/sortie entre les patients ayant une hyperthermie à J2 et ceux qui n'ayant pas d'hyperthermie à J2.
+De plus, La p-value associée au test de Kruskal-Wallis vaut 0.17 qui est supérieure à 0.05, au seuil de 5% on ne peut rejeter l'hypothèse nulle d'égalité des médianes de bilan entrée/sortie à J2 entre les patients en hyperthermie à J2 et ceux qui ne le sont pas, ainsi il n'y a pas de différence significative entre les deux groupes.
+
+```{r}
+# Glycémie  vs bilan j2         
+boxplot(df2$bilan_entre_sortie_j2~ df2$indicatrice_glycemie_j2, outline = FALSE)
+kruskal.test(df2$bilan_entre_sortie_j2~ df2$indicatrice_glycemie_j2)
+```
+Il semble ne pas avoir de différence significative des bilans entrée/sortie entre les patients ayant une glycémie normale à J2 et ceux ayant une glycémie anormale.
+
+En outre, la p-value associée au test de Kruskal-Wallis vaut 0.16 qui est supérieure à 0.05, au seuil de 5% on ne peut rejeter l'hypothèse nulle d'égalité des médianes de bilan entrée/sortie à J2 entre les patients ayant une glycémie normale  et ceux non, ainsi il n'y a pas de différence significative entre les deux groupes.
+
+```{r warning=FALSE}
+#bilan j2 vs age
+ggplot(df2) + geom_point(aes(x = anchor_age, y = bilan_entre_sortie_j2))
+cor.test(df2$anchor_age, df2$bilan_entre_sortie_j2,method = "spearman",use = "complete.obs" )
+```
+Il ne semble pas avoir de corrélation entre l'age et le bilan entrée/sortie à J1 graphiquement.
+Le test de corrélation de Spearman confirme qu'il n'existe pas corrélation significative entre les deux. en effet la p-value associée au test est égale à 0.12, au seul de 5%, on ne peut rejeter l'hypothèse nulle.
+
+
+
+```{r warning=FALSE}
+#lactate_j2 vs bilan j2
+ggplot(df2) + geom_point(aes(x = `lactate_J2(mmol/L)`, y = bilan_entre_sortie_j2))
+cor.test(df2$`lactate_J2(mmol/L)`, df2$bilan_entre_sortie_j2,method = "spearman",use = "complete.obs" )
+```
+Il ne semble pas avoir de corrélation entre la valeur de lactate à J2 et le bilan/entrée sortie à J2.
+
+Cependant le test de corrélation de Spearman révèle qu'il existe une faible corrélation positive entre les deux. en effet la p-value associée au test est égale à 0.002, au seuil de 5%, on rejette l'hypothèse nulle.
+
+```{r message=FALSE, warning=FALSE}
+#phlabevents_J2 vs bilan j2
+ggplot(df2) + geom_point(aes(x = phlabevents_J2, y = bilan_entre_sortie_j2))
+cor.test(df2$phlabevents_J2, df2$bilan_entre_sortie_j2,method = "spearman",use = "complete.obs" )
+```
+Il ne semble pas avoir de corrélation entre le ph à J2 et le bilan entrée/sortie à J2.
+
+Cependant le test de corrélation de Spearman révèle qu'il existe une faible corrélation négative entre les deux. en effet la p-value associée au test est égale à 5.34*10-8, au seul de 5%, on rejette l'hypothèse nulle.
+
+```{r warning=FALSE}
+#albumin j2 vs bilan j2
+ggplot(df2) + geom_point(aes(x = `albumin_J2(g/dL)`, y = bilan_entre_sortie_j2))
+cor.test(df2$`albumin_J2(g/dL)`, df2$bilan_entre_sortie_j2,method = "spearman",use = "complete.obs" )
+
+```
+Il ne semble pas avoir de corrélation entre l'albumine à J2 et le bilan entrée/sortie à J2.
+
+Cependant le test de corrélation de Spearman révèle qu'il existe une faible corrélation négative entre les deux. en effet la p-value associée au test est égale à 0.03, au seul de 5%, on rejette l'hypothèse nulle.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

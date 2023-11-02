@@ -1,0 +1,746 @@
+---
+title: "Cox"
+author: "Group_12"
+date: "2023-04-19"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+```{r}
+rm(list = ls())
+```
+
+
+```{r}
+library(DMwR2)
+library(survival)
+library(reshape2)
+library(tidyverse)
+library(dplyr)
+library(questionr)
+```
+
+```{r}
+
+donnees<-read.csv("data_travail.csv")
+#donnees<-read.csv("finally1.csv")
+#donnees<-donnees[-(which(donnees$subject_id=="17631949")),-(1:2)]
+donnees<-donnees[,-1]
+#names(donnees)
+#donnees_analyse<-read.csv("data_travail.csv")
+#table(donnees_analyse$indicatrice_deces_j3)
+#freq(donnees_analyse$indicatrice_deces_j3)
+str(donnees)
+```
+
+```{r}
+donnees["deces_jour_ana"]<- 'aumoinsj3'
+donnees[!is.na(donnees$indicatrice_deces_j0)&(donnees$indicatrice_deces_j0==1),
+        'deces_jour_ana'] <- 'j0'
+donnees[!is.na(donnees$indicatrice_deces_j0)&
+          !is.na(donnees$indicatrice_deces_j1)&
+          (donnees$indicatrice_deces_j0==0)& 
+          (donnees$indicatrice_deces_j1==1),
+        'deces_jour_ana'] <- 'j1'
+
+donnees[!is.na(donnees$indicatrice_deces_j0)&
+          !is.na(donnees$indicatrice_deces_j1)&
+          !is.na(donnees$indicatrice_deces_j2)&
+          (donnees$indicatrice_deces_j0==0)& 
+          (donnees$indicatrice_deces_j1==0)&
+          (donnees$indicatrice_deces_j2==1),
+        'deces_jour_ana'] <- 'j2'
+
+donnees[!is.na(donnees$indicatrice_deces_j0)&
+          !is.na(donnees$indicatrice_deces_j1)&
+          !is.na(donnees$indicatrice_deces_j2)&
+          !is.na(donnees$indicatrice_deces_j3)&
+          (donnees$indicatrice_deces_j0==0)& 
+          (donnees$indicatrice_deces_j1==0)&
+          (donnees$indicatrice_deces_j2==0)&
+          (donnees$indicatrice_deces_j3==1),
+        'deces_jour_ana'] <- 'j3'
+```
+
+```{r}
+table(donnees$deces_jour_ana)
+freq(donnees$deces_jour_ana)
+```
+
+
+### Placement de la censure à J3
+#Creation de la variable date_censure_J3
+```{r}
+
+donnees$date_censure_J3<-as.POSIXct(paste((as.Date(donnees$debut_AC)+3),"23:59:59"),format = "%Y-%m-%d %H:%M:%S")
+
+donnees$duree_vie_J3<-4
+
+```
+### Durée de vie à J0
+```{r}
+donnees$date_censure_J0<-as.POSIXct(paste((as.Date(donnees$debut_AC)),"23:59:59"),format = "%Y-%m-%d %H:%M:%S")
+
+donnees$duree_vie_J0<-1
+
+```
+
+### Durée de vie à J1
+```{r}
+donnees$date_censure_J1<-as.POSIXct(paste((as.Date(donnees$debut_AC)+1),"23:59:59"),format = "%Y-%m-%d %H:%M:%S")
+
+donnees$duree_vie_J1<-2
+```
+### Durée de vie à J2
+```{r}
+donnees$date_censure_J2<-as.POSIXct(paste((as.Date(donnees$debut_AC)+2),"23:59:59"),format = "%Y-%m-%d %H:%M:%S")
+
+donnees$duree_vie_J2<-3
+```
+
+```{r}
+View(donnees[,c("subject_id","hadm_id","duree_vie_J3","date_censure_J3","duree_vie_J2","date_censure_J2","duree_vie_J1","date_censure_J1","duree_vie_J0","date_censure_J0")])
+```
+
+```{r}
+donnees$duree_vie_initiale<-0
+#duree_vie_transpose_base<-donnees[,c("subject_id","hadm_id","duree_vie_initiale","duree_vie_J0","duree_vie_J1","duree_vie_J2","duree_vie_J3","deces_jour_ana")]
+
+duree_vie_transpose_base<-donnees[,c("subject_id","hadm_id","duree_vie_initiale","duree_vie_J0","duree_vie_J1","duree_vie_J2","deces_jour_ana")]
+
+duree_vie_transpose<-melt(duree_vie_transpose_base,id=c("subject_id","hadm_id","deces_jour_ana"))
+
+duree_vie_transpose<-rename.variable(duree_vie_transpose, "value", "times_J3")
+duree_vie_transpose<-rename.variable(duree_vie_transpose,"variable", "date")                         
+
+duree_vie_transpose<-duree_vie_transpose%>%filter(!(deces_jour_ana == "j0" & (date == "duree_vie_J1" | date == "duree_vie_J2")))
+
+duree_vie_transpose<-duree_vie_transpose%>%filter(!(deces_jour_ana == "j1" & (date == "duree_vie_J2" )))
+
+duree_vie_transpose<-duree_vie_transpose%>%filter(!(deces_jour_ana == "j2" & (date == "duree_vie_J3")))
+
+levels(duree_vie_transpose$date)<-c("1","2","3","4")
+View(duree_vie_transpose)
+#"date_censure_J3","date_censure_J2","date_censure_J1","date_censure_J0"
+```
+
+
+```{r}
+
+donnees["diff"]<-as.integer(difftime(donnees$date_deces, 
+                                        donnees$datedebut, units = "days"))+1
+
+donnees["time_J3"]<-donnees$diff
+
+donnees$time_J3[is.na(donnees$time_J3)] <- 4
+donnees$time_J3[donnees$time_J3>4] <- 4
+```
+
+
+```{r}
+
+data_final<-donnees[,c("subject_id","hadm_id","gender"
+                      ,"anchor_age",      "origin","heart_failure","obesity","chronic_pulmonary_disease","liver_disease","diabetes","renal_disease","malignant_cancer","aids","indicatrice_deces_j3","time_J3")]
+
+data_final$status_J3<-data_final$indicatrice_deces_j3
+
+```
+
+### Entrées sorties
+```{r}
+library(DMwR2)
+library(survival)
+library(reshape2)
+library(tidyverse)
+library(dplyr)
+library(questionr)
+```
+
+```{r}
+bilan<-donnees[,c("subject_id","hadm_id",
+                    "bilan_entre_sortie_j0","bilan_entre_sortie_j1",
+                    "bilan_entre_sortie_j2","bilan_entre_sortie_j3",'deces_jour_ana')]
+
+df_bilan <- melt(bilan, id=c("subject_id","hadm_id",'deces_jour_ana'))
+df_bilan<- rename.variable(df_bilan, "value", "bilan_entree_sortie")
+df_bilan<- rename.variable(df_bilan,"variable", "date")
+```
+
+
+```{r}
+df_bilan <- df_bilan %>% filter(!(deces_jour_ana == "j0" & (date == "bilan_entre_sortie_j1" | date == "bilan_entre_sortie_j2" | date == "bilan_entre_sortie_j3")))
+
+df_bilan <- df_bilan %>% filter(!(deces_jour_ana == "j1" & ( date == "bilan_entre_sortie_j2" | date == "bilan_entre_sortie_j3")))
+
+df_bilan <- df_bilan %>% filter(!(deces_jour_ana == "j2" & (date == "bilan_entre_sortie_j3")))
+
+levels(df_bilan$date)<-c("0","1","2","3")
+df_bilan$date=as.numeric(df_bilan$date)
+```
+
+
+###Pa02_FiO2max
+
+```{r}
+Pa02_FiO2max<-donnees[,c("subject_id","hadm_id",
+                           'PaO2_FiO2_max_J0','PaO2_FiO2_max_J1',
+                           'PaO2_FiO2_max_J2','PaO2_FiO2_max_J3','deces_jour_ana')]
+
+df_Pa02_FiO2max <- melt(Pa02_FiO2max, id=c("subject_id","hadm_id",'deces_jour_ana'))
+df_Pa02_FiO2max<- rename.variable(df_Pa02_FiO2max, "value", "Pa02_FiO2max")
+df_Pa02_FiO2max<- rename.variable(df_Pa02_FiO2max,"variable", "date")
+```
+
+```{r}
+df_Pa02_FiO2max <- df_Pa02_FiO2max %>% filter(!(deces_jour_ana == "j0" & (date == "Pa02_FiO2_max_J1" | date == "Pa02_FiO2_max_J2" | date == "Pa02_FiO2_max_J3")))
+
+df_Pa02_FiO2max <- df_Pa02_FiO2max %>% filter(!(deces_jour_ana == "j1" & ( date == "Pa02_FiO2_max_J2" | date == "Pa02_FiO2_max_J3")))
+
+df_Pa02_FiO2max <- df_Pa02_FiO2max %>% filter(!(deces_jour_ana == "j2" & (date == "Pa02_FiO2_max_J3")))
+
+levels(df_Pa02_FiO2max$date)<-c("0","1","2","3")
+df_Pa02_FiO2max$date=as.numeric(df_Pa02_FiO2max$date)
+```
+
+###Pa02_FiO2min
+
+```{r}
+Pa02_FiO2min<-donnees[,c("subject_id","hadm_id",'deces_jour_ana',
+                           'PaO2_FiO2_min_J0','PaO2_FiO2_min_J1',
+                           'PaO2_FiO2_min_J2','PaO2_FiO2_min_J3')]
+
+df_Pa02_FiO2min <- melt(Pa02_FiO2min, id=c("subject_id","hadm_id",'deces_jour_ana'))
+df_Pa02_FiO2min<- rename.variable(df_Pa02_FiO2min, "value", "Pa02_FiO2max")
+df_Pa02_FiO2min<- rename.variable(df_Pa02_FiO2min,"variable", "date")
+
+
+```
+
+```{r}
+df_Pa02_FiO2min <- df_Pa02_FiO2min %>% filter(!(deces_jour_ana == "j0" & (date == "Pa02_FiO2_min_J1" | date == "Pa02_FiO2_min_J2" | date == "Pa02_FiO2_min_J3")))
+
+df_Pa02_FiO2min <- df_Pa02_FiO2min %>% filter(!(deces_jour_ana == "j1" & ( date == "Pa02_FiO2_min_J2" | date == "Pa02_FiO2_min_J3")))
+
+df_Pa02_FiO2min <- df_Pa02_FiO2min %>% filter(!(deces_jour_ana == "j2" & (date == "Pa02_FiO2_min_J3")))
+
+levels(df_Pa02_FiO2min$date)<-c("0","1","2","3")
+df_Pa02_FiO2min$date=as.numeric(df_Pa02_FiO2min$date)
+
+```
+###Pa02_FIO2moyen
+
+```{r}
+Pa02_FiO2moyen<-donnees[,c("subject_id","hadm_id",'deces_jour_ana',
+                           'PaO2_FiO2_moyen_J0','PaO2_FiO2_moyen_J1',
+                           'PaO2_FiO2_moyen_J2','PaO2_FiO2_moyen_J3')]
+
+df_Pa02_FiO2moyen <- melt(Pa02_FiO2moyen, id=c("subject_id","hadm_id",'deces_jour_ana'))
+df_Pa02_FiO2moyen<- rename.variable(df_Pa02_FiO2moyen, "value", "Pa02_FiO2moyen")
+df_Pa02_FiO2moyen<- rename.variable(df_Pa02_FiO2moyen,"variable", "date")
+
+
+```
+
+```{r}
+df_Pa02_FiO2moyen <- df_Pa02_FiO2moyen %>% filter(!(deces_jour_ana == "j0" & (date == "Pa02_FiO2_moyen_J1" | date == "Pa02_FiO2_moyen_J2" | date == "Pa02_FiO2_moyen_J3")))
+
+df_Pa02_FiO2min <- df_Pa02_FiO2moyen %>% filter(!(deces_jour_ana == "j1" & ( date == "Pa02_FiO2_moyen_J2" | date == "Pa02_FiO2_moyen_J3")))
+
+df_Pa02_FiO2min <- df_Pa02_FiO2moyen %>% filter(!(deces_jour_ana == "j2" & (date == "Pa02_FiO2_moyen_J3")))
+
+levels(df_Pa02_FiO2moyen$date)<-c("0","1","2","3")
+df_Pa02_FiO2moyen$date=as.numeric(df_Pa02_FiO2moyen$date)
+
+```
+
+###albumin 
+```{r}
+albumin<-donnees[,c("subject_id","hadm_id",'deces_jour_ana',
+                      "albumin_J0.g.dL.","albumin_J1.g.dL.",
+                      "albumin_J2.g.dL.","albumin_J3.g.dL.")]
+df_albumin <- melt(albumin, id=c("subject_id","hadm_id",'deces_jour_ana'))
+df_albumin<- rename.variable(df_albumin, "value", "albumin")
+df_albumin<- rename.variable(df_albumin,"variable", "date")
+```
+
+```{r}
+df_albumin <- df_albumin %>% filter(!(deces_jour_ana == "j0" & (date == "albumin_J1.g.dL." | date == "albumin_J2.g.dL." | date == "albumin_J3.g.dL.")))
+
+df_albumin <- df_albumin %>% filter(!(deces_jour_ana == "j1" & ( date == "albumin_J2.g.dL." | date == "albumin_J3.g.dL.")))
+
+df_albumin <- df_albumin %>% filter(!(deces_jour_ana == "j2" & (date == "albumin_J3.g.dL.")))
+
+levels(df_albumin$date)<-c("0","1","2","3")
+df_albumin$date=as.numeric(df_albumin$date)
+
+```
+
+###index_cardiac_moyen  "index_cardiac_moyen_J0.L.min.m2."
+
+```{r}
+index_cardiac_moyen<-donnees[,c("subject_id","hadm_id","index_cardiac_moyen_J0.L.min.m2.",'deces_jour_ana')]
+df_index_cardiac_moyen <- melt(index_cardiac_moyen, id=c("subject_id","hadm_id" ,'deces_jour_ana'))
+df_index_cardiac_moyen<- rename.variable(df_index_cardiac_moyen, "value", "index_cardiac_moyen")
+df_index_cardiac_moyen<- rename.variable(df_index_cardiac_moyen,"variable", "date")
+
+levels(df_index_cardiac_moyen$date)<-c("0")
+df_index_cardiac_moyen$date=as.numeric(df_index_cardiac_moyen$date)
+
+```
+
+
+```{r}
+index_cardiac_min<-donnees[,c("subject_id","hadm_id",
+                                "index_cardiac_min_J0.L.min.m2.",'deces_jour_ana')]
+df_index_cardiac_min <- melt(index_cardiac_min, id=c("subject_id","hadm_id",'deces_jour_ana'))
+df_index_cardiac_min<- rename.variable(df_index_cardiac_min, "value", "index_cardiac_min")
+df_index_cardiac_min<- rename.variable(df_index_cardiac_min,"variable", "date")
+levels(df_index_cardiac_min$date)<-c("0")
+df_index_cardiac_min$date=as.numeric(df_index_cardiac_min$date)
+
+```
+
+### phlabevents
+```{r}
+phlabevents<-donnees[,c("subject_id","hadm_id",
+                          'phlabevents_J0','phlabevents_J1',
+                          'phlabevents_J2','phlabevents_J3','deces_jour_ana')]
+df_phlabevents <- melt(phlabevents, id=c("subject_id","hadm_id",'deces_jour_ana'))
+df_phlabevents<- rename.variable(df_phlabevents, "value", "phlabevents")
+df_phlabevents<- rename.variable(df_phlabevents,"variable", "date")
+```
+
+```{r}
+df_phlabevents <- df_phlabevents %>% filter(!(deces_jour_ana == "j0" & (date == "phlabevents_J1" | date == "phlabevents_J2" | date == "phlabevents_J3")))
+
+df_phlabevents <- df_phlabevents %>% filter(!(deces_jour_ana == "j1" & ( date == "phlabevents_J2" | date == "phlabevents_J3")))
+
+df_phlabevents <- df_phlabevents %>% filter(!(deces_jour_ana == "j2" & (date == "phlabevents_J3")))
+
+levels(df_phlabevents$date)<-c("0","1","2","3")
+df_phlabevents$date=as.numeric(df_phlabevents$date)
+
+
+```
+
+## lactate "lactate_J1.mmol.L."  
+```{r}
+
+lactate<-donnees[,c("subject_id","hadm_id",
+                      "lactate_J0.mmol.L.","lactate_J1.mmol.L.",
+                      "lactate_J2.mmol.L.","lactate_J2.mmol.L.",'deces_jour_ana')]
+df_lactate <- melt(lactate, id=c("subject_id","hadm_id",'deces_jour_ana'))
+df_lactate<- rename.variable(df_lactate, "value", "lactate")
+df_lactate<- rename.variable(df_lactate,"variable", "date")
+```
+
+```{r}
+df_lactate <- df_lactate %>% filter(!(deces_jour_ana == "j0" & (date == "lactate_J1.mmol.L." | date == "lactate_J2.mmol.L." | date == "lactate_J3.mmol.L.")))
+
+df_lactate <- df_lactate %>% filter(!(deces_jour_ana == "j1" & ( date == "lactate_J2.mmol.L." | date == "lactate_J3.mmol.L.")))
+
+df_lactate <- df_lactate %>% filter(!(deces_jour_ana == "j2" & (date == "lactate_J3.mmol.L.")))
+
+levels(df_lactate$date)<-c("0","1","2","3")
+df_lactate$date=as.numeric(df_lactate$date)
+```
+
+######indicatrice_glycemie_j0  
+```{r}
+indicatrice_glycemie<-donnees[,c("subject_id","hadm_id",
+                          'indicatrice_glycemie_j1','indicatrice_glycemie_j0',
+                          'indicatrice_glycemie_j2','indicatrice_glycemie_j3','deces_jour_ana')]
+df_indicatrice_glycemie <- melt(indicatrice_glycemie, id=c("subject_id","hadm_id",'deces_jour_ana'))
+df_indicatrice_glycemie<- rename.variable(df_indicatrice_glycemie, "value", "indicatrice_glycemie")
+df_indicatrice_glycemie<- rename.variable(df_indicatrice_glycemie,"variable", "date")
+```
+
+```{r}
+df_indicatrice_glycemie <- df_indicatrice_glycemie %>% filter(!(deces_jour_ana == "j0" & (date == "indicatrice_glycemie_j1" | date == "indicatrice_glycemie_j2" | date == "indicatrice_glycemiee_j3")))
+
+df_indicatrice_glycemie <- df_indicatrice_glycemie %>% filter(!(deces_jour_ana == "j1" & ( date == "indicatrice_glycemie_j2" | date == "indicatrice_glycemie_j3")))
+
+df_indicatrice_glycemie <- df_indicatrice_glycemie %>% filter(!(deces_jour_ana == "j2" & (date == "indicatrice_glycemie_j3")))
+
+levels(df_indicatrice_glycemie$date)<-c("0","1","2","3")
+df_indicatrice_glycemie$date=as.numeric(df_indicatrice_glycemie$date)
+
+```
+
+######  indicatrice_temperature_j0
+```{r}
+indicatrice_temperature<-donnees[,c("subject_id","hadm_id",
+                          'indicatrice_temperature_j1','indicatrice_temperature_j0',
+                          'indicatrice_temperature_j2','indicatrice_temperature_j3','deces_jour_ana')]
+df_indicatrice_temperature <- melt(indicatrice_temperature, id=c("subject_id","hadm_id",'deces_jour_ana'))
+df_indicatrice_temperature<- rename.variable(df_indicatrice_temperature, "value", "indicatrice_temperature")
+df_indicatrice_temperature<- rename.variable(df_indicatrice_temperature,"variable", "date")
+```
+
+```{r}
+df_indicatrice_temperature <- df_indicatrice_temperature %>% filter(!(deces_jour_ana == "j0" & (date == "indicatrice_temperature_j1" | date == "indicatrice_temperature_j2" | date == "indicatrice_temperature_j3")))
+
+df_indicatrice_temperature <- df_indicatrice_temperature %>% filter(!(deces_jour_ana == "j1" & ( date == "indicatrice_temperature_j2" | date == "indicatrice_temperature_j3")))
+
+df_indicatrice_temperature <- df_indicatrice_temperature %>% filter(!(deces_jour_ana == "j2" & (date == "indicatrice_temperature_j3")))
+
+levels(df_indicatrice_temperature$date)<-c("0","1","2","3")
+df_indicatrice_temperature$date=as.numeric(df_indicatrice_temperature$date)
+
+```
+
+#### Vis
+
+```{r}
+vis<-donnees[,c("subject_id","hadm_id",'vis_j0','vis_j1','vis_j2','vis_j3','deces_jour_ana')]
+df_vis <- melt(vis, id=c("subject_id","hadm_id",'deces_jour_ana'))
+df_vis<- rename.variable(df_vis, "value", "vis")
+df_vis<- rename.variable(df_vis,"variable", "date")
+
+df_vis <- df_vis %>% filter(!(deces_jour_ana == "j0" & (date == "vis_j1" | date == "vis_j2" | date == "vis_j3")))
+
+df_vis <- df_vis %>% filter(!(deces_jour_ana == "j1" & ( date == "vis_j2" | date == "vis_j3")))
+
+df_vis <- df_vis %>% filter(!(deces_jour_ana == "j2" & (date == "vis_j3")))
+
+levels(df_vis$date)<-c("0","1","2","3")
+df_vis$date=as.numeric(df_vis$date)
+#donnees$ventilation_j0 donnees$dialyse_finale_j0
+```
+
+#### Ventilation
+```{r}
+ventilation<-donnees[,c("subject_id","hadm_id",'ventilation_j0','ventilation_j1','ventilation_j2','ventilation_j3','deces_jour_ana')]
+df_ventilation <- melt(ventilation, id=c("subject_id","hadm_id",'deces_jour_ana'))
+df_ventilation<- rename.variable(df_ventilation, "value", "ventilation")
+df_ventilation<- rename.variable(df_ventilation,"variable", "date")
+
+df_ventilation <- df_ventilation %>% filter(!(deces_jour_ana == "j0" & (date == "ventilation_j1" | date == "ventilation_j2" | date == "ventilation_j3")))
+
+df_ventilation <- df_ventilation %>% filter(!(deces_jour_ana == "j1" & ( date == "ventilation_j2" | date == "ventilation_j3")))
+
+df_ventilation <- df_ventilation %>% filter(!(deces_jour_ana == "j2" & (date == "ventilation_j3")))
+
+
+levels(df_ventilation$date)<-c("0","1","2","3")
+df_ventilation$date=as.numeric(df_ventilation$date)
+```
+
+#### Dialyse
+
+```{r}
+dialyse<-donnees[,c("subject_id","hadm_id",'dialyse_finale_j0','dialyse_finale_j1','dialyse_finale_j2','dialyse_finale_j3','deces_jour_ana')]
+df_dialyse <- melt(dialyse, id=c("subject_id","hadm_id",'deces_jour_ana'))
+df_dialyse<- rename.variable(df_dialyse, "value", "dialyse")
+df_dialyse<- rename.variable(df_dialyse,"variable", "date")
+
+df_dialyse <- df_dialyse %>% filter(!(deces_jour_ana == "j0" & (date == "dialyse_finale_j1" | date == "dialyse_finale_j2" | date == "dialyse_finale_j3")))
+
+df_dialyse <- df_dialyse %>% filter(!(deces_jour_ana == "j1" & ( date == "dialyse_finale_j2" | date == "dialyse_finale_j3")))
+
+df_dialyse <- df_dialyse %>% filter(!(deces_jour_ana == "j2" & (date == "dialyse_finale_j3")))
+
+levels(df_dialyse$date)<-c("0","1","2","3")
+df_dialyse$date=as.numeric(df_dialyse$date)
+```
+
+
+##### REGRESSION DE COX
+```{r}
+library(survival)
+```
+
+```{r}
+#variable_fixe_temps<-melt(donnees,c("subject_id","hadm_id","gender","anchor_age","heart_failure","obesity","chronic_pulmonary_disease","liver_disease","diabetes","renal_disease","malignant_cancer","aids","origin","dod_transforme","deces_complet","debut_AC","date_censure_J3","duree_vie_J3","status_J3"))
+```
+
+```{r}
+donnees_final<-donnees[,c("subject_id","hadm_id","gender"
+                      ,"anchor_age",      "origin","heart_failure","obesity","chronic_pulmonary_disease","liver_disease","diabetes","renal_disease","malignant_cancer","aids","indicatrice_deces_j3","time_J3")]
+
+donnees_final$status_J3<-donnees_final$indicatrice_deces_j3
+```
+
+## Récupération et creation des tsart et tstop
+```{r}
+data_final <- tmerge(data1 = donnees_final, data2 = donnees_final, id = subject_id,death = event(time_J3,status_J3))
+#View(data_bilan)
+```
+## Ajout des variables
+## Ajout des variables bilan
+
+
+
+```{r}
+
+data_bilan <-merge(df_bilan[,c("subject_id","hadm_id","date","bilan_entree_sortie")], duree_vie_transpose[,c("subject_id","hadm_id","date","times_J3")], by = c("subject_id","hadm_id","date"), all.x = TRUE)
+
+data_final_bilan <- tmerge(data1 = data_final, data2 = data_bilan, id =subject_id ,
+## déclaration des covariables dépendant du temps
+               bilan_entree_sortie = tdc(times_J3,bilan_entree_sortie)
+)
+#View(data_final_bilan)  
+```
+#### Ajout des variables albumin
+```{r}
+data_albumin <-merge(df_albumin[,c("subject_id","hadm_id","date","albumin")], duree_vie_transpose[,c("subject_id","hadm_id","date","times_J3")], by = c("subject_id","hadm_id","date"), all.x = TRUE)
+
+data_final_albumin <- tmerge(data1 = data_final_bilan, data2 = data_albumin, id = subject_id,
+## déclaration des covariables dépendant du temps
+               albumin = tdc(times_J3,albumin)
+                        )
+```
+#### Ajout des variables index_cardiac_min
+```{r}
+data_index_cardiac_min <-merge(df_index_cardiac_min[,c("subject_id","hadm_id","date","index_cardiac_min")], duree_vie_transpose[,c("subject_id","hadm_id","date","times_J3")], by = c("subject_id","hadm_id","date"), all.x = TRUE)
+
+data_final_index_cardiac_min <- tmerge(data1 = data_final_albumin, data2 = data_index_cardiac_min, id = subject_id,
+## déclaration des covariables dépendant du temps
+               index_cardiac_min = tdc(times_J3,index_cardiac_min)
+                        )
+```
+#### Ajout des variables index_cardiac_moyen
+```{r}
+data_index_cardiac_moyen <-merge(df_index_cardiac_moyen[,c("subject_id","hadm_id","date","index_cardiac_moyen")], duree_vie_transpose[,c("subject_id","hadm_id","date","times_J3")], by = c("subject_id","hadm_id","date"), all.x = TRUE)
+
+data_final_index_cardiac_moyen <- tmerge(data1 = data_final_index_cardiac_min, data2 = data_index_cardiac_moyen, id = subject_id,
+## déclaration des covariables dépendant du temps
+               index_cardiac_moyen = tdc(times_J3,index_cardiac_moyen)
+                        )
+```
+#### Ajout des variables phlabevents
+```{r}
+data_phlabevents <-merge(df_phlabevents[,c("subject_id","hadm_id","date","phlabevents")], duree_vie_transpose[,c("subject_id","hadm_id","date","times_J3")], by = c("subject_id","hadm_id","date"), all.x = TRUE)
+
+data_final_phlabevents <- tmerge(data1 = data_final_index_cardiac_moyen, data2 = data_phlabevents, id = subject_id,
+## déclaration des covariables dépendant du temps
+               phlabevents = tdc(times_J3,phlabevents)
+                        )
+```
+#### Ajout des variables lactate
+```{r}
+data_lactate <-merge(df_lactate[,c("subject_id","hadm_id","date","lactate")], duree_vie_transpose[,c("subject_id","hadm_id","date","times_J3")], by = c("subject_id","hadm_id","date"), all.x = TRUE)
+
+data_final_lactate <- tmerge(data1 = data_final_phlabevents, data2 = data_lactate, id = subject_id,
+## déclaration des covariables dépendant du temps
+               lactate = tdc(times_J3,lactate)
+                        )
+```
+#### Ajout des variables indicatrice_glycemie
+```{r}
+data_indicatrice_glycemie <-merge(df_indicatrice_glycemie[,c("subject_id","hadm_id","date","indicatrice_glycemie")], duree_vie_transpose[,c("subject_id","hadm_id","date","times_J3")], by = c("subject_id","hadm_id","date"), all.x = TRUE)
+
+data_final_indicatrice_glycemie <- tmerge(data1 = data_final_lactate, data2 = data_indicatrice_glycemie, id = subject_id,
+## déclaration des covariables dépendant du temps
+               indicatrice_glycemie = tdc(times_J3,indicatrice_glycemie)
+                        )
+```
+#### Ajout des variables indicatrice_temperature
+```{r}
+data_indicatrice_temperature <-merge(df_indicatrice_temperature[,c("subject_id","hadm_id","date","indicatrice_temperature")], duree_vie_transpose[,c("subject_id","hadm_id","date","times_J3")], by = c("subject_id","hadm_id","date"), all.x = TRUE)
+
+data_final_indicatrice_temperature <- tmerge(data1 = data_final_indicatrice_glycemie, data2 = data_indicatrice_temperature, id = subject_id,
+## déclaration des covariables dépendant du temps
+               indicatrice_temperature = tdc(times_J3,indicatrice_temperature)
+                        )
+```
+#### Ajout des variables vis
+```{r}
+data_vis <-merge(df_vis[,c("subject_id","hadm_id","date","vis")], duree_vie_transpose[,c("subject_id","hadm_id","date","times_J3")], by = c("subject_id","hadm_id","date"), all.x = TRUE)
+
+data_final_vis <- tmerge(data1 = data_final_indicatrice_temperature, data2 = data_vis, id =subject_id,
+## déclaration des covariables dépendant du temps
+               vis = tdc(times_J3,vis)
+                        )
+```
+#### Ajout des variables ventilation
+```{r}
+data_ventilation <-merge(df_ventilation[,c("subject_id","hadm_id","date","ventilation")], duree_vie_transpose[,c("subject_id","hadm_id","date","times_J3")], by = c("subject_id","hadm_id","date"), all.x = TRUE)
+
+data_final_ventilation <- tmerge(data1 = data_final_vis, data2 = data_ventilation, id = subject_id,
+## déclaration des covariables dépendant du temps
+               ventilation = tdc(times_J3,ventilation)
+                        )
+```
+#### Ajout des variables dialyse
+```{r}
+data_dialyse <-merge(df_dialyse[,c("subject_id","hadm_id","date","dialyse")], duree_vie_transpose[,c("subject_id","hadm_id","date","times_J3")], by = c("subject_id","hadm_id","date"), all.x = TRUE)
+
+data_final_dialyse <- tmerge(data1 = data_final_ventilation, data2 = data_dialyse, id = subject_id,
+## déclaration des covariables dépendant du temps
+               dialyse = tdc(times_J3,dialyse)
+                        )
+```
+
+#### Ajout des variables pa02_fi02moyen
+```{r}
+data_Pa02_FiO2moyen <-merge(df_Pa02_FiO2moyen[,c("subject_id","hadm_id","date","Pa02_FiO2moyen")], duree_vie_transpose[,c("subject_id","hadm_id","date","times_J3")], by = c("subject_id","hadm_id","date"), all.x = TRUE)
+
+data_final_Pa02_FiO2moyen <- tmerge(data1 = data_final_dialyse, data2 = data_Pa02_FiO2moyen, id =subject_id,
+## déclaration des covariables dépendant du temps
+               Pa02_FiO2moyen = tdc(times_J3,Pa02_FiO2moyen)
+                        )
+```
+
+### Base d'analyse
+```{r}
+data_analyse<-data_final_Pa02_FiO2moyen %>% select(-c(index_cardiac_min,index_cardiac_moyen))
+```
+
+```{r}
+glimpse(data_analyse)
+```
+
+```{r}
+
+write.csv(data_analyse, file = "data_analyse.csv", row.names = FALSE)
+```
+
+```{r}
+data_analyse_logit<-read.csv("data_analyse.csv")
+```
+
+#View(data_analyse)
+
+```{r}
+
+pourcentages <- colMeans(is.na(data_analyse_logit)) * 100
+pourcentages## dialyse et albumin et indicatrice de temperature
+
+class(data_analyse_logit$indicatrice_glycemie)
+data_analyse_logit$indicatrice_glycemie<-as.integer(data_analyse_logit$indicatrice_glycemie)
+```
+```{r}
+library(mice)
+library(survival)
+```
+
+
+```{r}
+data_ana<-data_analyse_logit %>% select(-c(origin,dialyse,indicatrice_temperature,albumin))
+
+imputed_df <- mice(data_ana, method = "rf", m = 5)
+
+# Extraire les données imputées
+imputed_df_fi <- complete(imputed_df)
+#colMeans(is.na(imputed_df_fi)) * 100
+#library(eha)
+```
+
+```{r}
+View(imputed_df_fi)
+```
+
+#################LOGIT
+```{r}
+donnees_reg_log<-imputed_df_fi
+donnees_reg_log$deces_logistique<-0
+
+donnees_reg_log$deces_logistique[donnees_reg_log$tstop==donnees_reg_log$time_J3]<-donnees_reg_log$status_J3[donnees_reg_log$tstop==donnees_reg_log$time_J3]
+
+donnees_reg_log$indicatice_bilan<-0
+donnees_reg_log$indicatice_bilan[donnees_reg_log$bilan_entree_sortie>0]<-1
+```
+
+```{r}
+#View(donnees_reg_log[,c("subject_id","deces_logistique","tstop","time_J3","status_J3")])
+names(donnees_reg_log)
+```
+
+```{r}
+colnames(donnees_reg_log)
+donnees_reg_log$ventilation<-as.factor(donnees_reg_log$ventilation)
+donnees_reg_log$gender<-as.factor(donnees_reg_log$gender)
+donnees_reg_log$obesity<-as.factor(donnees_reg_log$obesity)
+donnees_reg_log$heart_failure<-as.factor(donnees_reg_log$heart_failure)
+donnees_reg_log$chronic_pulmonary_disease<-as.factor(donnees_reg_log$chronic_pulmonary_disease)
+donnees_reg_log$liver_disease<-as.factor(donnees_reg_log$liver_disease)
+donnees_reg_log$aids<-as.factor(donnees_reg_log$aids)
+donnees_reg_log$diabetes<-as.factor(donnees_reg_log$diabetes)
+donnees_reg_log$tstop<-as.factor(donnees_reg_log$tstop)
+donnees_reg_log$indicatrice_glycemie<-as.factor(donnees_reg_log$indicatrice_glycemie)
+donnees_reg_log$deces_logistique<-as.integer(donnees_reg_log$deces_logistique)
+donnees_reg_log$anchor_age<-as.integer(donnees_reg_log$anchor_age)
+donnees_reg_log$phlabevents<-as.numeric(donnees_reg_log$phlabevents)
+donnees_reg_log$vis<-as.numeric(donnees_reg_log$vis)
+donnees_reg_log$lactate<-as.numeric(donnees_reg_log$lactate)
+donnees_reg_log$bilan_entree_sortie<-as.numeric(donnees_reg_log$bilan_entree_sortie)
+
+don_num <- as.data.frame(donnees_reg_log [,c("gender","anchor_age","obesity","heart_failure","liver_disease","diabetes","indicatrice_glycemie","ventilation","phlabevents","lactate","bilan_entree_sortie","deces_logistique")])
+
+```
+
+```{r}
+library(bestglm)
+mod_se<-bestglm(don_num,family=binomial,IC="AIC")
+modele<-mod_se$BestModels
+
+variable_signi<-colnames(modele[which(modele[which.min(modele$Criterion),]==TRUE)])
+
+```
+
+
+#### Log
+```{r}
+donnees_reg_log<-imputed_df
+donnees_reg_log$deces_logistique<-0
+  
+donnees_reg_log$deces_logistique[donnees_reg_log$tstop==donnees_reg_log$time_J3]<-donnees_reg_log$status_J3[donnees_reg_log$tstop==donnees_reg_log$time_J3]
+
+View(donnees_reg_log[,c("subject_id","deces_logistique","tstop","time_J3","status_J3")])
+```
+
+### Regression logistique BAU
+```{r}
+fit_base1<-glm(deces_logistique~
+           scale(bilan_entree_sortie),binomial,donnees_reg_log)
+summary(fit_base1)
+```
+
+```{r}
+fit_base2<-glm(deces_logistique~factor(tstop)+
+           scale(bilan_entree_sortie),binomial,donnees_reg_log)
+summary(fit_base2)
+```
+
+```{r}
+
+fit_base3<-glm(deces_logistique~
+               scale(anchor_age)
+               +scale(vis)
+               +factor(heart_failure)
+               +factor(liver_disease)
+               +factor(diabetes)
+               +factor(indicatrice_glycemie)
+               +factor(ventilation)
+               +scale(phlabevents)
+               +scale(lactate),binomial,donnees_reg_log)
+summary(fit_base3)
+```
+
+
+```{r}
+fit_base4<-glm(deces_logistique~factor(tstop)
+               +scale(anchor_age)
+               +scale(vis)
+               +factor(heart_failure)
+               +factor(liver_disease)
+               +factor(diabetes)
+               +factor(indicatrice_glycemie)
+               +factor(ventilation)
+               +scale(phlabevents)
+               +scale(lactate),binomial,donnees_reg_log)
+summary(fit_base4)
+```
+```{r}
+diff_deviance=2178.4-2040.5
+  
+degre_liberte<-3599-3595 
+```
+
+
